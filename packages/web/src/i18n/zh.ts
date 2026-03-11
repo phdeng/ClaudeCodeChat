@@ -281,6 +281,12 @@ const zh = {
     codeTheme: '代码高亮主题',
     sound: '提示音',
     soundEnabled: '启用通知音效',
+    budgetTitle: '成本预算',
+    budgetDescription: '设置 Token 消耗预算和预警阈值',
+    sessionBudget: '单会话 Token 预算',
+    sessionBudgetHint: '设为 0 表示不限制',
+    warningThreshold: '预警阈值',
+    budgetUnit: 'K tokens',
   },
 
   // ===== 使用统计 =====
@@ -327,6 +333,7 @@ const zh = {
       tools: '工具',
       view: '视图',
     },
+    contextDesc: '管理当前对话的上下文（文件/目录/URL）',
   },
 
   // ===== 知识库 =====
@@ -389,6 +396,80 @@ const zh = {
     alreadyRunning: '已有工作流正在执行',
     noSteps: '工作流没有步骤',
     allCompleted: '工作流所有步骤已完成',
+  },
+
+  // ===== 上下文管理 =====
+  context: {
+    title: '上下文管理',
+    sendToCliTitle: '发送 /context 到 CLI',
+    sendToCli: '查看 CLI 上下文',
+    tokenUsage: '上下文占用',
+    tokenEstimate: '约 {tokens} tokens',
+    maxTokens: '/ 200K 上限',
+    addFile: '添加文件',
+    addDirectory: '添加目录',
+    addUrl: '添加 URL',
+    urlInputTitle: '输入 URL',
+    urlInputPlaceholder: '请输入网页 URL...',
+    itemCount: '共 {count} 项',
+    clearAll: '清空全部',
+    clearConfirm: '确定清空所有上下文项？',
+    emptyHint: '暂无上下文项，点击上方按钮添加',
+    fileType: '文件',
+    directoryType: '目录',
+    urlType: '网页',
+    browsing: '浏览文件...',
+    selectFile: '选择文件',
+    selectDirectory: '选择目录',
+    parentDirectory: '上级目录',
+    added: '已添加到上下文',
+    removed: '已从上下文移除',
+    cleared: '上下文已清空',
+    conversationHistory: '对话历史',
+  },
+
+  // ===== 文件预览 =====
+  filePreview: {
+    title: '文件预览',
+    loading: '加载中...',
+    loadFailed: '文件加载失败',
+    fileNotFound: '文件不存在',
+    noPermission: '没有访问权限',
+    binaryFile: '二进制文件无法预览',
+    truncated: '文件过大，已截断显示（前 {size}）',
+    addToContext: '添加到上下文',
+    addedToContext: '已添加到上下文',
+    fileSize: '大小',
+    lineCount: '行数',
+    language: '语言',
+    lines: '{n} 行',
+  },
+
+  // ===== 预算预警 =====
+  budget: {
+    warning: 'Token 消耗已达预算的 {percent}%',
+    exceeded: 'Token 消耗已超出预算',
+    current: '当前: {current}',
+    limit: '预算: {limit}',
+    dismiss: '关闭提醒',
+  },
+
+  // ===== 敏感信息 =====
+  sensitive: {
+    title: '检测到敏感信息',
+    warning: '发送的消息中可能包含以下敏感信息：',
+    matchCount: '检测到 {count} 处敏感信息',
+    apiKey: 'API 密钥',
+    password: '密码',
+    privateKey: '私钥',
+    phone: '手机号',
+    idCard: '身份证号',
+    emailPassword: '邮箱密码',
+    token: 'Token 令牌',
+    connectionString: '数据库连接串',
+    sendMasked: '遮罩后发送',
+    sendOriginal: '确认原文发送',
+    hint: '建议在发送前检查并移除敏感信息',
   },
 } as const
 

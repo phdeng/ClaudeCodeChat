@@ -519,4 +519,285 @@ router.get('/git-status', async (req, res) => {
   }
 })
 
+/**
+ * 文件扩展名 → 语言类型映射表
+ */
+const EXTENSION_LANGUAGE_MAP: Record<string, string> = {
+  '.ts': 'typescript',
+  '.tsx': 'typescript',
+  '.js': 'javascript',
+  '.jsx': 'javascript',
+  '.mjs': 'javascript',
+  '.cjs': 'javascript',
+  '.py': 'python',
+  '.go': 'go',
+  '.rs': 'rust',
+  '.java': 'java',
+  '.kt': 'kotlin',
+  '.swift': 'swift',
+  '.c': 'c',
+  '.cpp': 'cpp',
+  '.h': 'c',
+  '.hpp': 'cpp',
+  '.cs': 'csharp',
+  '.rb': 'ruby',
+  '.php': 'php',
+  '.r': 'r',
+  '.scala': 'scala',
+  '.dart': 'dart',
+  '.lua': 'lua',
+  '.sh': 'shell',
+  '.bash': 'shell',
+  '.zsh': 'shell',
+  '.ps1': 'powershell',
+  '.bat': 'batch',
+  '.cmd': 'batch',
+  '.md': 'markdown',
+  '.mdx': 'markdown',
+  '.json': 'json',
+  '.jsonc': 'json',
+  '.yaml': 'yaml',
+  '.yml': 'yaml',
+  '.toml': 'toml',
+  '.xml': 'xml',
+  '.html': 'html',
+  '.htm': 'html',
+  '.css': 'css',
+  '.scss': 'scss',
+  '.sass': 'sass',
+  '.less': 'less',
+  '.sql': 'sql',
+  '.graphql': 'graphql',
+  '.gql': 'graphql',
+  '.proto': 'protobuf',
+  '.dockerfile': 'dockerfile',
+  '.tf': 'terraform',
+  '.vue': 'vue',
+  '.svelte': 'svelte',
+  '.txt': 'plaintext',
+  '.log': 'plaintext',
+  '.ini': 'ini',
+  '.cfg': 'ini',
+  '.conf': 'ini',
+  '.env': 'dotenv',
+  '.gitignore': 'plaintext',
+  '.dockerignore': 'plaintext',
+  '.editorconfig': 'ini',
+}
+
+/**
+ * 根据文件扩展名获取语言类型
+ */
+function getLanguageByExtension(filePath: string): string {
+  const ext = path.extname(filePath).toLowerCase()
+  // 特殊文件名处理（无扩展名但有特定名称）
+  const baseName = path.basename(filePath).toLowerCase()
+  if (baseName === 'dockerfile') return 'dockerfile'
+  if (baseName === 'makefile') return 'makefile'
+  if (baseName === 'cmakelists.txt') return 'cmake'
+  if (baseName === '.gitignore') return 'plaintext'
+  if (baseName === '.env' || baseName.startsWith('.env.')) return 'dotenv'
+
+  return EXTENSION_LANGUAGE_MAP[ext] || 'unknown'
+}
+
+/**
+ * 检查文件内容是否为二进制（通过检测前 8KB 中是否包含 null 字节）
+ */
+function isBinaryBuffer(buffer: Buffer): boolean {
+  // 检查前 8192 字节中是否有 null 字节
+  const checkLength = Math.min(buffer.length, 8192)
+  for (let i = 0; i < checkLength; i++) {
+    if (buffer[i] === 0) return true
+  }
+  return false
+}
+
+/**
+ * 安全路径检查：禁止路径遍历攻击
+ * - 路径规范化后不能包含 ..
+ * - 返回规范化后的绝对路径
+ */
+function validatePathSecurity(rawPath: string): { valid: boolean; resolvedPath: string; error?: string } {
+  if (!rawPath || typeof rawPath !== 'string') {
+    return { valid: false, resolvedPath: '', error: '路径参数不能为空' }
+  }
+
+  const decoded = decodeURIComponent(rawPath)
+
+  // 检查原始路径中是否包含 .. 路径遍历
+  if (decoded.includes('..')) {
+    return { valid: false, resolvedPath: '', error: '路径中不允许包含 ".."，禁止路径遍历' }
+  }
+
+  const resolvedPath = path.resolve(decoded)
+  return { valid: true, resolvedPath }
+}
+
+/**
+ * GET /api/filesystem/file-info?path=<file_path>
+ * 获取指定文件的详细信息：名称、大小、行数、语言类型、修改时间等。
+ * - 仅对小于 1MB 的文件计算行数
+ * - 通过扩展名判断语言类型
+ */
+router.get('/file-info', async (req, res) => {
+  try {
+    const rawPath = req.query.path as string | undefined
+    if (!rawPath) {
+      return res.status(400).json({ error: '缺少 path 参数' })
+    }
+
+    // 安全检查
+    const pathCheck = validatePathSecurity(rawPath)
+    if (!pathCheck.valid) {
+      return res.status(403).json({ error: pathCheck.error })
+    }
+
+    const filePath = pathCheck.resolvedPath
+
+    // 获取文件状态
+    let stat
+    try {
+      stat = await fs.stat(filePath)
+    } catch (err: unknown) {
+      const code = (err as NodeJS.ErrnoException).code
+      if (code === 'ENOENT') {
+        return res.status(404).json({ error: '文件不存在' })
+      }
+      if (code === 'EACCES' || code === 'EPERM') {
+        return res.status(403).json({ error: '没有权限访问该文件' })
+      }
+      throw err
+    }
+
+    const isDirectory = stat.isDirectory()
+    const fileName = path.basename(filePath)
+
+    // 计算行数（仅对小于 1MB 的非目录文件）
+    let lineCount: number | null = null
+    let isReadable = true
+
+    if (!isDirectory && stat.size <= 1024 * 1024) {
+      try {
+        const content = await fs.readFile(filePath, 'utf-8')
+        lineCount = content.split('\n').length
+      } catch {
+        // 无法读取文件内容（可能是二进制或权限问题）
+        isReadable = false
+      }
+    } else if (!isDirectory && stat.size > 1024 * 1024) {
+      // 文件过大，不计算行数但仍标记为可读
+      try {
+        await fs.access(filePath, 4 /* fs.constants.R_OK */)
+      } catch {
+        isReadable = false
+      }
+    }
+
+    // 获取语言类型（仅对文件有意义）
+    const language = isDirectory ? 'directory' : getLanguageByExtension(filePath)
+
+    res.json({
+      name: fileName,
+      path: filePath,
+      size: stat.size,
+      lineCount,
+      language,
+      lastModified: stat.mtime.toISOString(),
+      isDirectory,
+      isReadable,
+    })
+  } catch (err) {
+    console.error('获取文件信息失败:', err)
+    res.status(500).json({ error: '获取文件信息失败' })
+  }
+})
+
+/**
+ * GET /api/filesystem/read-file?path=<file_path>&maxSize=<max_bytes>
+ * 读取指定文件的文本内容。
+ * - 默认最大读取 100KB，超过则截断
+ * - 只允许读取文本文件，二进制文件返回错误
+ * - 安全检查：禁止路径遍历
+ */
+router.get('/read-file', async (req, res) => {
+  try {
+    const rawPath = req.query.path as string | undefined
+    const maxSizeStr = req.query.maxSize as string | undefined
+    const maxSize = Math.min(parseInt(maxSizeStr || '100000', 10) || 100000, 5 * 1024 * 1024) // 最大 5MB
+
+    if (!rawPath) {
+      return res.status(400).json({ error: '缺少 path 参数' })
+    }
+
+    // 安全检查
+    const pathCheck = validatePathSecurity(rawPath)
+    if (!pathCheck.valid) {
+      return res.status(403).json({ error: pathCheck.error })
+    }
+
+    const filePath = pathCheck.resolvedPath
+
+    // 获取文件状态
+    let stat
+    try {
+      stat = await fs.stat(filePath)
+    } catch (err: unknown) {
+      const code = (err as NodeJS.ErrnoException).code
+      if (code === 'ENOENT') {
+        return res.status(404).json({ error: '文件不存在' })
+      }
+      if (code === 'EACCES' || code === 'EPERM') {
+        return res.status(403).json({ error: '没有权限访问该文件' })
+      }
+      throw err
+    }
+
+    // 不允许读取目录
+    if (stat.isDirectory()) {
+      return res.status(400).json({ error: '该路径是一个目录，无法读取文件内容' })
+    }
+
+    const totalSize = stat.size
+
+    // 读取文件内容（如果文件很大，只读取 maxSize 字节判断是否为二进制）
+    const readSize = Math.min(totalSize, maxSize)
+
+    // 读取文件的 buffer 用于二进制检测
+    const fileHandle = await fs.open(filePath, 'r')
+    try {
+      // 先读取前 8KB 检测是否为二进制文件
+      const detectSize = Math.min(totalSize, 8192)
+      const detectBuffer = Buffer.alloc(detectSize)
+      await fileHandle.read(detectBuffer, 0, detectSize, 0)
+
+      if (isBinaryBuffer(detectBuffer)) {
+        return res.status(400).json({
+          error: '该文件为二进制文件，无法以文本方式读取',
+          totalSize,
+        })
+      }
+
+      // 读取实际内容
+      const contentBuffer = Buffer.alloc(readSize)
+      await fileHandle.read(contentBuffer, 0, readSize, 0)
+      const content = contentBuffer.toString('utf-8')
+      const truncated = totalSize > maxSize
+      const lineCount = content.split('\n').length
+
+      res.json({
+        content,
+        truncated,
+        totalSize,
+        lineCount,
+      })
+    } finally {
+      await fileHandle.close()
+    }
+  } catch (err) {
+    console.error('读取文件内容失败:', err)
+    res.status(500).json({ error: '读取文件内容失败' })
+  }
+})
+
 export default router

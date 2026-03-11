@@ -34,6 +34,13 @@ import { useSessionStore, type Message } from '../stores/sessionStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useTranslation } from '../i18n'
 import { playNotificationSound } from '../utils/notificationSound'
+import ContextPanel from '../components/ContextPanel'
+import FilePreviewDialog from '../components/FilePreviewDialog'
+import SensitiveWarningDialog from '../components/SensitiveWarningDialog'
+import BudgetAlert from '../components/BudgetAlert'
+import { detectSensitive, maskSensitive } from '../utils/sensitiveDetector'
+import type { SensitiveMatch } from '../utils/sensitiveDetector'
+import { useContextStore } from '../stores/contextStore'
 
 // 异步调用后端 API 生成智能会话标题
 const generateTitle = async (sid: string, messages: Message[]) => {
@@ -101,6 +108,45 @@ export default function ChatPage() {
   const [diffState, setDiffState] = useState<{ original: string; modified: string } | null>(null)
   // 任务进度指示列表
   const [activeProgress, setActiveProgress] = useState<Array<{ type: string; name: string }>>([])
+  // 上下文管理面板
+  const [showContext, setShowContext] = useState(false)
+  // 文件预览
+  const [previewFile, setPreviewFile] = useState<string | null>(null)
+  // 敏感信息检测对话框
+  const [sensitiveDialog, setSensitiveDialog] = useState<{
+    open: boolean
+    matches: SensitiveMatch[]
+    originalText: string
+  } | null>(null)
+
+  // 成本预算设置（从 localStorage 读取）
+  const [budgetSettings, setBudgetSettings] = useState<{ budgetTokensK: number; warningThreshold: number }>({ budgetTokensK: 0, warningThreshold: 80 })
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('budget-settings')
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        setBudgetSettings({
+          budgetTokensK: parsed.budgetTokensK || 0,
+          warningThreshold: parsed.warningThreshold || 80,
+        })
+      }
+    } catch { /* 忽略 */ }
+    // 监听 storage 变化（设置页修改后同步）
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'budget-settings' && e.newValue) {
+        try {
+          const parsed = JSON.parse(e.newValue)
+          setBudgetSettings({
+            budgetTokensK: parsed.budgetTokensK || 0,
+            warningThreshold: parsed.warningThreshold || 80,
+          })
+        } catch { /* 忽略 */ }
+      }
+    }
+    window.addEventListener('storage', handleStorage)
+    return () => window.removeEventListener('storage', handleStorage)
+  }, [])
 
   // 用于记录重新生成前的旧 assistant 回复内容
   const regenerateOldContentRef = useRef<string | null>(null)
@@ -696,7 +742,8 @@ export default function ChatPage() {
     }
   }
 
-  const handleSend = (content: string, images?: Array<{ base64: string; name: string }>) => {
+  /** 实际执行发送逻辑（敏感信息检测通过后调用） */
+  const doSend = (content: string, images?: Array<{ base64: string; name: string }>) => {
     let sid = sessionId || activeSessionId
 
     if (!sid) {
@@ -706,6 +753,19 @@ export default function ChatPage() {
     }
 
     currentSessionIdRef.current = sid
+
+    // 附加上下文项（@路径格式）
+    let finalMessage = content
+    const contextItems = useContextStore.getState().getItems(sid || '')
+    if (contextItems.length > 0) {
+      const contextPrefix = contextItems
+        .filter(item => item.type === 'file')
+        .map(item => `@${item.path}`)
+        .join(' ')
+      if (contextPrefix) {
+        finalMessage = `${contextPrefix} ${finalMessage}`
+      }
+    }
 
     addMessage(sid, { role: 'user', content, images: images && images.length > 0 ? images : undefined })
 
@@ -723,7 +783,22 @@ export default function ChatPage() {
       connectSSE()
     }
 
-    sendChatMessage(sid, content, images)
+    sendChatMessage(sid, finalMessage, images)
+  }
+
+  const handleSend = (content: string, images?: Array<{ base64: string; name: string }>) => {
+    // 敏感信息检测
+    const detection = detectSensitive(content)
+    if (detection.detected) {
+      setSensitiveDialog({
+        open: true,
+        matches: detection.matches,
+        originalText: content,
+      })
+      return  // 暂停发送，等待用户决策
+    }
+
+    doSend(content, images)
   }
 
   const handleStop = () => {
@@ -963,6 +1038,10 @@ export default function ChatPage() {
         setShowWorkflow(true)
         break
       }
+      case '/context': {
+        setShowContext(true)
+        break
+      }
       case '/clear-context': {
         // 清除当前会话所有消息（保留会话本身）
         const sid = sessionId || activeSessionId
@@ -1141,6 +1220,23 @@ export default function ChatPage() {
         onSuggestionClick={(text) => handleSend(text)}
       />}
 
+      {/* 预算预警条 */}
+      {budgetSettings.budgetTokensK > 0 && session && (() => {
+        const sessionTokens = session.messages.reduce((sum, m) => {
+          if (m.tokenUsage) {
+            return sum + (m.tokenUsage.inputTokens || 0) + (m.tokenUsage.outputTokens || 0)
+          }
+          return sum
+        }, 0)
+        return (
+          <BudgetAlert
+            currentTokens={sessionTokens}
+            budgetTokens={budgetSettings.budgetTokensK * 1000}
+            warningThreshold={budgetSettings.warningThreshold / 100}
+          />
+        )
+      })()}
+
       <ChatInput
         onSend={handleSend}
         onStop={handleStop}
@@ -1245,6 +1341,50 @@ export default function ChatPage() {
           originalText={diffState.original}
           modifiedText={diffState.modified}
           onClose={() => setDiffState(null)}
+        />
+      )}
+
+      {/* 上下文管理面板 */}
+      <ContextPanel
+        sessionId={sessionId || activeSessionId || ''}
+        workingDirectory={session?.workingDirectory}
+        open={showContext}
+        onClose={() => setShowContext(false)}
+        onSendContext={() => {
+          setShowContext(false)
+          handleSend('/context')
+        }}
+      />
+
+      {/* 文件预览 */}
+      {previewFile && (
+        <FilePreviewDialog
+          open={!!previewFile}
+          onClose={() => setPreviewFile(null)}
+          filePath={previewFile}
+          workingDirectory={session?.workingDirectory}
+          onAddToContext={(item) => {
+            useContextStore.getState().addItem(sessionId || activeSessionId || '', item)
+          }}
+        />
+      )}
+
+      {/* 敏感信息警告 */}
+      {sensitiveDialog && (
+        <SensitiveWarningDialog
+          open={sensitiveDialog.open}
+          matches={sensitiveDialog.matches}
+          originalText={sensitiveDialog.originalText}
+          onClose={() => setSensitiveDialog(null)}
+          onSendOriginal={() => {
+            const text = sensitiveDialog.originalText
+            setSensitiveDialog(null)
+            doSend(text)
+          }}
+          onSendMasked={(maskedText) => {
+            setSensitiveDialog(null)
+            doSend(maskedText)
+          }}
         />
       )}
     </div>

@@ -26,6 +26,9 @@ import {
   Eye,
   Palette,
   Rocket,
+  Layers,
+  Shield,
+  Wallet,
 } from 'lucide-react'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
@@ -104,6 +107,14 @@ export const SLASH_COMMANDS: CommandPaletteItem[] = [
     icon: 'columns',
     type: 'command',
     value: '/compare',
+  },
+  {
+    id: 'cmd-context',
+    label: '/context',
+    description: '管理当前对话的上下文（文件/目录/URL）',
+    icon: 'layers',
+    type: 'command',
+    value: '/context',
   },
   {
     id: 'cmd-cost',
@@ -288,6 +299,9 @@ function ItemIcon({ icon, type }: { icon?: string; type: CommandPaletteItem['typ
   if (icon === 'zen') return <Eye size={size} className={cn(cls, 'text-green-400/80')} />
   if (icon === 'palette') return <Palette size={size} className={cn(cls, 'text-purple-400/80')} />
   if (icon === 'rocket') return <Rocket size={size} className={cn(cls, 'text-orange-300/80')} />
+  if (icon === 'layers') return <Layers size={size} className={cls} />
+  if (icon === 'shield') return <Shield size={size} className={cls} />
+  if (icon === 'wallet') return <Wallet size={size} className={cls} />
 
   if (type === 'directory') return <Folder size={size} className={cn(cls, 'text-primary/70')} />
   return <File size={size} className={cls} />

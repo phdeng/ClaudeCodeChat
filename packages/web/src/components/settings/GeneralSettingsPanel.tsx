@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { SlidersHorizontal, RefreshCw, Plus, X, Info, Palette, Code2, AlertTriangle, FolderOpen, Languages } from 'lucide-react'
+import { SlidersHorizontal, RefreshCw, Plus, X, Info, Palette, Code2, AlertTriangle, FolderOpen, Languages, Wallet } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardTitle, CardDescription } from '@/components/ui/card'
@@ -56,6 +56,28 @@ export default function GeneralSettingsPanel({ scope, workingDirectory }: Genera
   // 新增权限规则表单
   const [newRuleType, setNewRuleType] = useState<'allow' | 'deny' | 'ask'>('allow')
   const [newRulePattern, setNewRulePattern] = useState('')
+
+  // 成本预算设置（localStorage 存储）
+  const [budgetTokensK, setBudgetTokensK] = useState(0)
+  const [budgetWarningThreshold, setBudgetWarningThreshold] = useState(80)
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('budget-settings')
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (typeof parsed.budgetTokensK === 'number') setBudgetTokensK(parsed.budgetTokensK)
+        if (typeof parsed.warningThreshold === 'number') setBudgetWarningThreshold(parsed.warningThreshold)
+      }
+    } catch { /* 忽略解析错误 */ }
+  }, [])
+
+  const saveBudgetSettings = useCallback((tokensK: number, threshold: number) => {
+    localStorage.setItem('budget-settings', JSON.stringify({
+      budgetTokensK: tokensK,
+      warningThreshold: threshold,
+    }))
+  }, [])
 
   const buildQueryParams = useCallback(() => {
     if (isProject && workingDirectory) {
@@ -451,6 +473,64 @@ export default function GeneralSettingsPanel({ scope, workingDirectory }: Genera
               <Plus size={14} />
               添加
             </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 成本预算设置 */}
+      <Card className="py-0 rounded-2xl">
+        <CardContent className="p-5 space-y-4">
+          <div className="flex items-center gap-2">
+            <Wallet size={16} className="text-primary" />
+            <div>
+              <CardTitle className="text-sm">{t('settings.budgetTitle')}</CardTitle>
+              <CardDescription className="text-xs mt-0.5">{t('settings.budgetDescription')}</CardDescription>
+            </div>
+          </div>
+
+          {/* 单会话 Token 预算 */}
+          <div className="space-y-2">
+            <label className="text-xs text-muted-foreground">{t('settings.sessionBudget')}</label>
+            <div className="flex items-center gap-2">
+              <Input
+                type="number"
+                min={0}
+                step={10}
+                value={budgetTokensK}
+                onChange={(e) => {
+                  const val = Math.max(0, Number(e.target.value) || 0)
+                  setBudgetTokensK(val)
+                  saveBudgetSettings(val, budgetWarningThreshold)
+                }}
+                className="w-32"
+              />
+              <span className="text-xs text-muted-foreground">{t('settings.budgetUnit')}</span>
+            </div>
+            <p className="text-[11px] text-muted-foreground">{t('settings.sessionBudgetHint')}</p>
+          </div>
+
+          {/* 预警阈值 */}
+          <div className="space-y-2">
+            <label className="text-xs text-muted-foreground">
+              {t('settings.warningThreshold')}: {budgetWarningThreshold}%
+            </label>
+            <div className="flex items-center gap-3">
+              <span className="text-[11px] text-muted-foreground">50%</span>
+              <input
+                type="range"
+                min={50}
+                max={100}
+                step={5}
+                value={budgetWarningThreshold}
+                onChange={(e) => {
+                  const val = Number(e.target.value)
+                  setBudgetWarningThreshold(val)
+                  saveBudgetSettings(budgetTokensK, val)
+                }}
+                className="flex-1 h-1.5 accent-primary cursor-pointer"
+              />
+              <span className="text-[11px] text-muted-foreground">100%</span>
+            </div>
           </div>
         </CardContent>
       </Card>

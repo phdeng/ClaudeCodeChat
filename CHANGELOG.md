@@ -4,6 +4,31 @@
 
 ---
 
+## [v1.3.0] — 2026-03-12
+
+### 新增
+- **/context 上下文可视化面板**：匹配 CLI `/context` 输出，10x10 彩色方块网格 + Token 类别分解（System prompt/tools/Memory/Skills/Messages/Free/Autocompact）+ MCP 工具列表 + Skills 列表
+- **文件预览与内容查看器**：代码语法高亮 + 行号 + 图片预览 + 文件元信息展示
+- **敏感信息自动检测与遮罩**：发送前扫描 7 类敏感信息（API Key/密码/私钥/手机号/身份证号/Token/数据库连接串），支持遮罩后发送
+- **智能成本预警与预算控制**：设置单会话 Token 预算 + 预警阈值，消耗接近时显示警告条
+- **后端文件 API**：`/api/filesystem/file-info`（文件元信息）+ `/api/filesystem/read-file`（文件内容读取，含二进制检测和路径安全检查）
+- **UI 基础组件**：Sheet 抽屉组件 + Dialog 弹窗组件（基于 Radix UI）
+
+### 变更
+- 版本号从 1.2.0 升级到 1.3.0
+- `/context` 命令注册为 directCommand，打开可视化面板
+- ContextPanel 重构为双 Tab：Context Usage 可视化 + 管理上下文
+- 设置页通用面板新增「成本预算」卡片
+- 侧边栏清理遗留无用状态变量
+
+### 技术细节
+- 上下文网格使用 useMemo 优化渲染，按类别 token 比例分配 100 个方块
+- 敏感检测使用 7 组正则表达式，支持去重和按位置排序
+- 文件读取 API 包含路径安全验证（禁止 `..` 遍历）和二进制文件检测（前 8KB null bytes）
+- 预算配置通过 localStorage `budget-settings` 持久化，支持跨标签页同步
+
+---
+
 ## [v1.2.0] — 2026-03-12
 
 ### 新增
@@ -124,6 +149,7 @@
 
 ---
 
+[v1.3.0]: https://github.com/phdeng/ClaudeCodeChat/compare/v1.2.0...v1.3.0
 [v1.2.0]: https://github.com/phdeng/ClaudeCodeChat/compare/v1.1.0...v1.2.0
 [v1.1.0]: https://github.com/phdeng/ClaudeCodeChat/compare/v1.0.0...v1.1.0
 [v1.0.0]: https://github.com/phdeng/ClaudeCodeChat/releases/tag/v1.0.0

@@ -153,17 +153,12 @@ export default function Sidebar({ onClose }: SidebarProps) {
   const [showArchived, setShowArchived] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
-  const [exportDropdownId, setExportDropdownId] = useState<string | null>(null)
   // 预览导出：记录当前预览的会话 ID
   const [previewSessionId, setPreviewSessionId] = useState<string | null>(null)
   // 标签弹窗：记录当前打开标签编辑的会话 ID
   const [tagPopoverId, setTagPopoverId] = useState<string | null>(null)
   const [tagInput, setTagInput] = useState('')
   const tagPopoverRef = useRef<HTMLDivElement>(null)
-  // 颜色标签弹窗
-  const [colorPickerId, setColorPickerId] = useState<string | null>(null)
-  const colorPickerRef = useRef<HTMLDivElement>(null)
-  const exportDropdownRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // 拖拽排序状态
@@ -210,18 +205,6 @@ export default function Sidebar({ onClose }: SidebarProps) {
     }
   }, [summarizingId, t])
 
-  // 点击外部关闭导出下拉菜单
-  useEffect(() => {
-    if (!exportDropdownId) return
-    const handleClickOutside = (e: MouseEvent) => {
-      if (exportDropdownRef.current && !exportDropdownRef.current.contains(e.target as Node)) {
-        setExportDropdownId(null)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [exportDropdownId])
-
   // 点击外部关闭标签弹窗
   useEffect(() => {
     if (!tagPopoverId) return
@@ -234,18 +217,6 @@ export default function Sidebar({ onClose }: SidebarProps) {
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [tagPopoverId])
-
-  // 点击外部关闭颜色标签弹窗
-  useEffect(() => {
-    if (!colorPickerId) return
-    const handleClickOutside = (e: MouseEvent) => {
-      if (colorPickerRef.current && !colorPickerRef.current.contains(e.target as Node)) {
-        setColorPickerId(null)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [colorPickerId])
 
   // 点击外部关闭项目筛选下拉
   useEffect(() => {

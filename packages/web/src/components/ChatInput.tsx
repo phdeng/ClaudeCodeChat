@@ -737,7 +737,7 @@ export default function ChatInput({
 
       if (item.type === 'command') {
         // 直接执行类命令：由父组件处理
-        const directCommands = ['/clear', '/new', '/settings', '/sessions', '/cost', '/system', '/prompts', '/clear-context', '/git', '/files', '/snippets', '/exportimage', '/pin', '/zen', '/theme', '/workflow']
+        const directCommands = ['/clear', '/new', '/settings', '/sessions', '/cost', '/system', '/prompts', '/clear-context', '/git', '/files', '/snippets', '/exportimage', '/pin', '/zen', '/theme', '/workflow', '/context']
         if (directCommands.includes(item.value)) {
           setInput('')
           setTrigger(null)

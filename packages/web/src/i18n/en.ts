@@ -283,6 +283,12 @@ const en: Locale = {
     codeTheme: 'Code Theme',
     sound: 'Sound',
     soundEnabled: 'Enable notification sound',
+    budgetTitle: 'Cost Budget',
+    budgetDescription: 'Set token consumption budget and warning threshold',
+    sessionBudget: 'Session Token Budget',
+    sessionBudgetHint: 'Set to 0 for unlimited',
+    warningThreshold: 'Warning Threshold',
+    budgetUnit: 'K tokens',
   },
 
   // ===== Usage Stats =====
@@ -329,6 +335,7 @@ const en: Locale = {
       tools: 'Tools',
       view: 'View',
     },
+    contextDesc: 'Manage conversation context (files/directories/URLs)',
   },
 
   // ===== Knowledge Base =====
@@ -391,6 +398,80 @@ const en: Locale = {
     alreadyRunning: 'A workflow is already running',
     noSteps: 'Workflow has no steps',
     allCompleted: 'All workflow steps completed',
+  },
+
+  // ===== Context Management =====
+  context: {
+    title: 'Context Manager',
+    sendToCliTitle: 'Send /context to CLI',
+    sendToCli: 'View CLI Context',
+    tokenUsage: 'Context Usage',
+    tokenEstimate: '~{tokens} tokens',
+    maxTokens: '/ 200K max',
+    addFile: 'Add File',
+    addDirectory: 'Add Directory',
+    addUrl: 'Add URL',
+    urlInputTitle: 'Enter URL',
+    urlInputPlaceholder: 'Enter a web URL...',
+    itemCount: '{count} items',
+    clearAll: 'Clear All',
+    clearConfirm: 'Clear all context items?',
+    emptyHint: 'No context items. Click buttons above to add.',
+    fileType: 'File',
+    directoryType: 'Directory',
+    urlType: 'URL',
+    browsing: 'Browsing files...',
+    selectFile: 'Select File',
+    selectDirectory: 'Select Directory',
+    parentDirectory: 'Parent Directory',
+    added: 'Added to context',
+    removed: 'Removed from context',
+    cleared: 'Context cleared',
+    conversationHistory: 'Conversation History',
+  },
+
+  // ===== File Preview =====
+  filePreview: {
+    title: 'File Preview',
+    loading: 'Loading...',
+    loadFailed: 'Failed to load file',
+    fileNotFound: 'File not found',
+    noPermission: 'No permission to access',
+    binaryFile: 'Binary file cannot be previewed',
+    truncated: 'File too large, truncated (first {size})',
+    addToContext: 'Add to Context',
+    addedToContext: 'Added to context',
+    fileSize: 'Size',
+    lineCount: 'Lines',
+    language: 'Language',
+    lines: '{n} lines',
+  },
+
+  // ===== Budget Alert =====
+  budget: {
+    warning: 'Token usage at {percent}% of budget',
+    exceeded: 'Token usage exceeded budget',
+    current: 'Current: {current}',
+    limit: 'Budget: {limit}',
+    dismiss: 'Dismiss',
+  },
+
+  // ===== Sensitive Info =====
+  sensitive: {
+    title: 'Sensitive Information Detected',
+    warning: 'The message may contain the following sensitive information:',
+    matchCount: '{count} sensitive items detected',
+    apiKey: 'API Key',
+    password: 'Password',
+    privateKey: 'Private Key',
+    phone: 'Phone Number',
+    idCard: 'ID Card Number',
+    emailPassword: 'Email Password',
+    token: 'Token',
+    connectionString: 'Database Connection String',
+    sendMasked: 'Send Masked',
+    sendOriginal: 'Send Original',
+    hint: 'Please review and remove sensitive information before sending',
   },
 } as const
 
