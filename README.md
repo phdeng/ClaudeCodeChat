@@ -1,6 +1,10 @@
 # ClaudeCodeChat
 
 <p align="center">
+  <a href="./README.md">中文</a> | <a href="./README_EN.md">English</a>
+</p>
+
+<p align="center">
   <strong>为 Claude Code CLI 打造的 Web 聊天界面</strong>
 </p>
 
