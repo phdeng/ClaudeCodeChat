@@ -9,6 +9,7 @@ import { useThemeStore } from './stores/themeStore'
 const SettingsPage = lazy(() => import('./pages/SettingsPage'))
 const SessionsPage = lazy(() => import('./pages/SessionsPage'))
 const SearchPage = lazy(() => import('./pages/SearchPage'))
+const KnowledgePage = lazy(() => import('./pages/KnowledgePage'))
 
 export default function App() {
   const { theme, accentColor } = useThemeStore()
@@ -54,6 +55,7 @@ export default function App() {
           <Route path="/settings" element={<Suspense fallback={<div className="flex items-center justify-center h-full text-muted-foreground text-sm">加载中...</div>}><SettingsPage /></Suspense>} />
           <Route path="/sessions" element={<Suspense fallback={<div className="flex items-center justify-center h-full text-muted-foreground text-sm">加载中...</div>}><SessionsPage /></Suspense>} />
           <Route path="/search" element={<Suspense fallback={<div className="flex items-center justify-center h-full text-muted-foreground text-sm">加载中...</div>}><SearchPage /></Suspense>} />
+          <Route path="/knowledge" element={<Suspense fallback={<div className="flex items-center justify-center h-full text-muted-foreground text-sm">加载中...</div>}><KnowledgePage /></Suspense>} />
         </Route>
       </Routes>
       <Toaster

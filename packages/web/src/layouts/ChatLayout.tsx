@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, type TouchEvent as ReactTouchEvent, type DragEvent } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
-import { PanelLeftClose, PanelLeft, MessageSquare, ChevronDown, Zap, FolderOpen, Sun, Moon, Monitor, Volume2, VolumeX, Cloud, CloudOff, Loader2, Shield, ClipboardList, Maximize2, Minimize2, Bell, RefreshCw, X, Plus, ChevronLeft, ChevronRight as ChevronRightIcon, List, Search, Settings } from 'lucide-react'
+import { PanelLeftClose, PanelLeft, MessageSquare, ChevronDown, Zap, FolderOpen, Sun, Moon, Monitor, Volume2, VolumeX, Cloud, CloudOff, Loader2, Shield, ClipboardList, Maximize2, Minimize2, Bell, RefreshCw, X, Plus, ChevronLeft, ChevronRight as ChevronRightIcon, List, Search, Settings, BookOpen } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
 import FolderPicker from '../components/FolderPicker'
 import KeyboardShortcutsDialog from '../components/KeyboardShortcutsDialog'
@@ -12,6 +12,7 @@ import { useSettingsStore } from '../stores/settingsStore'
 import { useNotificationStore } from '../stores/notificationStore'
 import { useIsMobile } from '../hooks/useMediaQuery'
 import { initAutoSync } from '../services/sessionSync'
+import { useTranslation } from '../i18n'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -24,17 +25,27 @@ import {
 
 /** 权限模式选项 */
 const PERMISSION_MODES = [
-  { id: 'default', name: '默认', desc: '需要确认', Icon: Shield },
-  { id: 'plan', name: '计划', desc: '需要批准计划', Icon: ClipboardList },
-  { id: 'auto', name: '自动', desc: '自动执行', Icon: Zap },
+  { id: 'default', nameKey: 'default' as const, descKey: 'default_desc' as const, Icon: Shield },
+  { id: 'plan', nameKey: 'plan' as const, descKey: 'plan_desc' as const, Icon: ClipboardList },
+  { id: 'auto', nameKey: 'auto' as const, descKey: 'auto_desc' as const, Icon: Zap },
 ]
 
+const PERM_NAMES: Record<string, Record<string, string>> = {
+  zh: { default: '默认', plan: '计划', auto: '自动', default_desc: '需要确认', plan_desc: '需要批准计划', auto_desc: '自动执行' },
+  en: { default: 'Default', plan: 'Plan', auto: 'Auto', default_desc: 'Requires confirmation', plan_desc: 'Requires plan approval', auto_desc: 'Auto execute' },
+}
+
 const MODEL_OPTIONS = [
-  { value: '', label: '默认', description: '使用服务器配置' },
-  { value: 'claude-sonnet-4-6', label: 'Sonnet', description: '快速且智能' },
-  { value: 'claude-opus-4-6', label: 'Opus', description: '最强推理能力' },
-  { value: 'claude-haiku-4-5-20251001', label: 'Haiku', description: '极速响应' },
+  { value: '', labelKey: 'default' as const, descKey: 'default_desc' as const },
+  { value: 'claude-sonnet-4-6', labelKey: 'sonnet' as const, descKey: 'sonnet_desc' as const },
+  { value: 'claude-opus-4-6', labelKey: 'opus' as const, descKey: 'opus_desc' as const },
+  { value: 'claude-haiku-4-5-20251001', labelKey: 'haiku' as const, descKey: 'haiku_desc' as const },
 ]
+
+const MODEL_NAMES: Record<string, Record<string, string>> = {
+  zh: { default: '默认', default_desc: '使用服务器配置', sonnet: 'Sonnet', sonnet_desc: '快速且智能', opus: 'Opus', opus_desc: '最强推理能力', haiku: 'Haiku', haiku_desc: '极速响应' },
+  en: { default: 'Default', default_desc: 'Use server config', sonnet: 'Sonnet', sonnet_desc: 'Fast and smart', opus: 'Opus', opus_desc: 'Strongest reasoning', haiku: 'Haiku', haiku_desc: 'Ultra fast' },
+}
 
 export default function ChatLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth > 768)
@@ -57,10 +68,13 @@ export default function ChatLayout() {
   const { soundEnabled, toggleSound } = useSettingsStore()
   const notificationUnreadCount = useNotificationStore((s) => s.unreadCount())
 
+  const { t, lang } = useTranslation()
   const isMobile = useIsMobile()
   const activeSession = sessions.find((s) => s.id === activeSessionId)
 
-  const currentModelLabel = MODEL_OPTIONS.find((m) => m.value === selectedModel)?.label || '默认'
+  const mn = MODEL_NAMES[lang] || MODEL_NAMES.zh
+  const pn = PERM_NAMES[lang] || PERM_NAMES.zh
+  const currentModelLabel = mn[MODEL_OPTIONS.find((m) => m.value === selectedModel)?.labelKey || 'default']
   const currentPermMode = PERMISSION_MODES.find((m) => m.id === permissionMode) || PERMISSION_MODES[0]
 
   /** 循环切换权限模式：默认 → 计划 → 自动 → 默认 */
@@ -205,7 +219,7 @@ export default function ChatLayout() {
     ? activeSession.workingDirectory.split(/[/\\]/).filter(Boolean).pop() || activeSession.workingDirectory
     : null
 
-  const statusText = connectionStatus === 'connected' ? '已连接' : connectionStatus === 'connecting' ? '连接中' : '未连接'
+  const statusText = connectionStatus === 'connected' ? t('layout.connected') : connectionStatus === 'connecting' ? t('layout.connecting') : t('layout.disconnected')
 
   // 网络延迟等级：绿色 < 100ms, 黄色 100-300ms, 红色 > 300ms
   const latencyLevel = networkLatency === null ? 'unknown' : networkLatency < 100 ? 'good' : networkLatency < 300 ? 'medium' : 'poor'
@@ -247,9 +261,10 @@ export default function ChatLayout() {
 
   // 格式化最后同步时间
   const formatSyncTime = useCallback((timestamp: number | null) => {
-    if (!timestamp) return '尚未同步'
+    if (!timestamp) return lang === 'zh' ? '尚未同步' : 'Not synced'
     const date = new Date(timestamp)
-    return `上次同步: ${date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`
+    const timeStr = date.toLocaleTimeString(lang === 'zh' ? 'zh-CN' : 'en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+    return lang === 'zh' ? `上次同步: ${timeStr}` : `Last sync: ${timeStr}`
   }, [])
 
   // 检查标签栏是否需要滚动箭头
@@ -434,7 +449,7 @@ export default function ChatLayout() {
       {zenMode && (
         <div className="zen-toolbar">
           <span className="zen-toolbar-title">
-            {activeSession?.title || '新对话'}
+            {activeSession?.title || t('sidebar.newChat')}
           </span>
           <span className={`status-dot ${connectionStatus}`} />
           <TooltipProvider>
@@ -450,7 +465,7 @@ export default function ChatLayout() {
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="bottom" sideOffset={4}>
-                退出焦点模式 (ESC)
+                {t('layout.exitZenMode')} (ESC)
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -495,7 +510,7 @@ export default function ChatLayout() {
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" sideOffset={4}>
-                  {sidebarOpen ? '收起侧边栏 (Ctrl+B)' : '展开侧边栏 (Ctrl+B)'}
+                  {sidebarOpen ? (lang === 'zh' ? '收起侧边栏 (Ctrl+B)' : 'Collapse sidebar (Ctrl+B)') : (lang === 'zh' ? '展开侧边栏 (Ctrl+B)' : 'Expand sidebar (Ctrl+B)')}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -509,7 +524,7 @@ export default function ChatLayout() {
               </div>
             ) : (
               <span className="text-[13px] text-muted-foreground">
-                新对话
+                {t('sidebar.newChat')}
               </span>
             )}
           </div>
@@ -528,12 +543,12 @@ export default function ChatLayout() {
                   >
                     <FolderOpen size={12} className={folderDisplayName ? 'text-primary' : 'opacity-50'} />
                     <span className="text-[12px] truncate hidden sm:inline">
-                      {folderDisplayName || '未设置项目'}
+                      {folderDisplayName || (lang === 'zh' ? '未设置项目' : 'No project')}
                     </span>
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" sideOffset={4}>
-                  {activeSession?.workingDirectory || '点击选择项目文件夹'}
+                  {activeSession?.workingDirectory || t('layout.selectFolder')}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -553,7 +568,7 @@ export default function ChatLayout() {
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" sideOffset={4}>
-                  {mode === 'dark' ? '暗色模式（点击切换）' : mode === 'light' ? '亮色模式（点击切换）' : '跟随系统（点击切换）'}
+                  {mode === 'dark' ? t('settings.themeDark') : mode === 'light' ? t('settings.themeLight') : t('settings.themeSystem')}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -576,7 +591,7 @@ export default function ChatLayout() {
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" sideOffset={4}>
-                  {soundEnabled ? '关闭通知音效' : '开启通知音效'}
+                  {soundEnabled ? (lang === 'zh' ? '关闭通知音效' : 'Mute') : (lang === 'zh' ? '开启通知音效' : 'Unmute')}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -607,7 +622,7 @@ export default function ChatLayout() {
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" sideOffset={4}>
-                  {isSyncing ? '同步中...' : formatSyncTime(lastSyncTime)}
+                  {isSyncing ? t('common.loading') : formatSyncTime(lastSyncTime)}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -634,7 +649,7 @@ export default function ChatLayout() {
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent side="bottom" sideOffset={4}>
-                    通知中心{notificationUnreadCount > 0 ? ` (${notificationUnreadCount} 条未读)` : ''}
+                    {lang === 'zh' ? '通知中心' : 'Notifications'}{notificationUnreadCount > 0 ? ` (${notificationUnreadCount})` : ''}
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
@@ -663,14 +678,14 @@ export default function ChatLayout() {
                     )}
                   >
                     <currentPermMode.Icon size={12} />
-                    <span className="text-[12px] hidden sm:inline">{currentPermMode.name}</span>
+                    <span className="text-[12px] hidden sm:inline">{pn[currentPermMode.nameKey]}</span>
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" sideOffset={4}>
                   <div className="text-center">
-                    <div className="font-medium">权限模式: {currentPermMode.name}</div>
-                    <div className="text-[11px] text-foreground/70">{currentPermMode.desc}</div>
-                    <div className="text-[10px] text-foreground/50 mt-0.5">点击切换</div>
+                    <div className="font-medium">{lang === 'zh' ? '权限模式' : 'Permission'}: {pn[currentPermMode.nameKey]}</div>
+                    <div className="text-[11px] text-foreground/70">{pn[currentPermMode.descKey]}</div>
+                    <div className="text-[10px] text-foreground/50 mt-0.5">{lang === 'zh' ? '点击切换' : 'Click to switch'}</div>
                   </div>
                 </TooltipContent>
               </Tooltip>
@@ -691,7 +706,7 @@ export default function ChatLayout() {
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" sideOffset={4}>
-                  焦点模式 (Ctrl+Shift+Z)
+                  {t('layout.zenMode')} (Ctrl+Shift+Z)
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -706,14 +721,14 @@ export default function ChatLayout() {
                     <span className="text-[11px] text-muted-foreground hidden sm:inline">
                       {connectionStatus === 'connected' && (
                         <>
-                          已连接
+                          {t('layout.connected')}
                           {backendVersion && <span className="text-muted-foreground ml-1">v{backendVersion}</span>}
                         </>
                       )}
                       {connectionStatus === 'connecting' && (
-                        <>连接中...{reconnectCount > 0 && <span className="text-muted-foreground ml-1">({reconnectCount})</span>}</>
+                        <>{t('layout.connecting')}{reconnectCount > 0 && <span className="text-muted-foreground ml-1">({reconnectCount})</span>}</>
                       )}
-                      {connectionStatus === 'disconnected' && '已断开'}
+                      {connectionStatus === 'disconnected' && t('layout.disconnected')}
                     </span>
                     {/* 网络延迟指示器 — 移动端隐藏文字 */}
                     {connectionStatus === 'connected' && networkLatency !== null && !isMobile && (
@@ -734,7 +749,7 @@ export default function ChatLayout() {
                           e.stopPropagation()
                           window.dispatchEvent(new CustomEvent('manual-reconnect'))
                         }}
-                        title="手动重连"
+                        title={t('layout.reconnect')}
                       >
                         <RefreshCw size={11} />
                       </button>
@@ -746,20 +761,17 @@ export default function ChatLayout() {
                     <div className="font-medium">{statusText}</div>
                     {connectionStatus === 'connected' && networkLatency !== null && (
                       <div className="text-[11px] text-foreground/70">
-                        延迟: {networkLatency}ms
-                        {latencyLevel === 'good' && ' (优)'}
-                        {latencyLevel === 'medium' && ' (中)'}
-                        {latencyLevel === 'poor' && ' (差)'}
+                        {t('layout.latency')}: {networkLatency}ms
                       </div>
                     )}
                     {connectionStatus === 'connected' && backendVersion && (
-                      <div className="text-[10px] text-foreground/50">后端版本: v{backendVersion}</div>
+                      <div className="text-[10px] text-foreground/50">{t('layout.version')}: v{backendVersion}</div>
                     )}
                     {connectionStatus === 'connecting' && reconnectCount > 0 && (
-                      <div className="text-[11px] text-foreground/70">重试 {reconnectCount}/5</div>
+                      <div className="text-[11px] text-foreground/70">{lang === 'zh' ? '重试' : 'Retry'} {reconnectCount}/5</div>
                     )}
                     {connectionStatus === 'disconnected' && lastDisconnectedAt && (
-                      <div className="text-[11px] text-foreground/70">断开于 {formatDisconnectedTime(lastDisconnectedAt)}</div>
+                      <div className="text-[11px] text-foreground/70">{lang === 'zh' ? '断开于' : 'Lost at'} {formatDisconnectedTime(lastDisconnectedAt)}</div>
                     )}
                   </div>
                 </TooltipContent>
@@ -790,8 +802,8 @@ export default function ChatLayout() {
                       onClick={() => handleSelectModel(option.value)}
                     >
                       <div className="flex flex-col gap-0.5">
-                        <span className="font-medium">{option.label}</span>
-                        <span className="text-[11px] text-muted-foreground">{option.description}</span>
+                        <span className="font-medium">{mn[option.labelKey]}</span>
+                        <span className="text-[11px] text-muted-foreground">{mn[option.descKey]}</span>
                       </div>
                       {selectedModel === option.value && (
                         <span className="ml-auto text-primary text-[11px]">&#10003;</span>
@@ -830,7 +842,7 @@ export default function ChatLayout() {
                 if (!tabSession) return null
                 const isActive = tabId === activeSessionId
                 const isStreamingTab = streamingSessions.has(tabId)
-                const title = tabSession.title || '新对话'
+                const title = tabSession.title || t('sidebar.newChat')
                 const truncatedTitle = title.length > 20 ? title.slice(0, 20) + '...' : title
 
                 return (
@@ -899,7 +911,7 @@ export default function ChatLayout() {
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" sideOffset={4}>
-                  新建对话 (Ctrl+N)
+                  {t('sidebar.newChat')} (Ctrl+N)
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -953,7 +965,7 @@ export default function ChatLayout() {
             )}
           >
             <MessageSquare size={20} />
-            <span className="text-[10px] font-medium">对话</span>
+            <span className="text-[10px] font-medium">{lang === 'zh' ? '对话' : 'Chat'}</span>
           </button>
 
           <button
@@ -968,7 +980,7 @@ export default function ChatLayout() {
             )}
           >
             <List size={20} />
-            <span className="text-[10px] font-medium">会话</span>
+            <span className="text-[10px] font-medium">{lang === 'zh' ? '会话' : 'Sessions'}</span>
           </button>
 
           <button
@@ -981,7 +993,20 @@ export default function ChatLayout() {
             )}
           >
             <Search size={20} />
-            <span className="text-[10px] font-medium">搜索</span>
+            <span className="text-[10px] font-medium">{t('common.search')}</span>
+          </button>
+
+          <button
+            onClick={() => navigate('/knowledge')}
+            className={cn(
+              'flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors',
+              location.pathname === '/knowledge'
+                ? 'text-primary'
+                : 'text-muted-foreground'
+            )}
+          >
+            <BookOpen size={20} />
+            <span className="text-[10px] font-medium">{t('knowledge.title')}</span>
           </button>
 
           <button
@@ -994,7 +1019,7 @@ export default function ChatLayout() {
             )}
           >
             <Settings size={20} />
-            <span className="text-[10px] font-medium">设置</span>
+            <span className="text-[10px] font-medium">{t('common.settings')}</span>
           </button>
         </nav>
       )}

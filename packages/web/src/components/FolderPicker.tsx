@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
 import { useSessionStore } from '@/stores/sessionStore'
+import { useTranslation } from '../i18n'
 
 interface DirectoryEntry {
   name: string
@@ -28,6 +29,7 @@ interface FolderPickerProps {
 }
 
 export default function FolderPicker({ open, onClose, onSelect, initialPath }: FolderPickerProps) {
+  const { t } = useTranslation()
   const [currentPath, setCurrentPath] = useState(initialPath || '')
   const [directories, setDirectories] = useState<DirectoryEntry[]>([])
   const [parentPath, setParentPath] = useState<string | null>(null)
@@ -65,7 +67,7 @@ export default function FolderPicker({ open, onClose, onSelect, initialPath }: F
         ? `/api/filesystem/browse?path=${encodeURIComponent(path)}`
         : '/api/filesystem/browse'
       const res = await fetch(url)
-      if (!res.ok) throw new Error('无法访问该路径')
+      if (!res.ok) throw new Error(t('folderPicker.invalidPath'))
       const data: BrowseResult = await res.json()
       setCurrentPath(data.current)
       setParentPath(data.parent)
@@ -81,7 +83,7 @@ export default function FolderPicker({ open, onClose, onSelect, initialPath }: F
         setIsWindows(true)
       }
     } catch (e: any) {
-      setError(e.message || '浏览目录失败')
+      setError(e.message || t('folderPicker.invalidPath'))
     } finally {
       setLoading(false)
     }
@@ -114,10 +116,10 @@ export default function FolderPicker({ open, onClose, onSelect, initialPath }: F
         setInputError(null)
         browse(data.path || trimmed)
       } else {
-        setInputError('路径无效或不是一个目录')
+        setInputError(t('folderPicker.invalidPath'))
       }
     } catch (e: any) {
-      setInputError(e.message || '路径验证失败')
+      setInputError(e.message || t('folderPicker.invalidPath'))
     } finally {
       setValidating(false)
     }
@@ -158,7 +160,7 @@ export default function FolderPicker({ open, onClose, onSelect, initialPath }: F
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <div className="flex items-center gap-2.5">
             <FolderOpen size={18} className="text-primary" />
-            <h2 className="text-[14px] font-semibold text-foreground">选择项目文件夹</h2>
+            <h2 className="text-[14px] font-semibold text-foreground">{t('folderPicker.title')}</h2>
           </div>
           <Button
             variant="ghost"
@@ -178,7 +180,7 @@ export default function FolderPicker({ open, onClose, onSelect, initialPath }: F
             <div className="w-[200px] flex-shrink-0 border-r border-border flex flex-col">
               <div className="flex items-center gap-1.5 px-3 py-2.5">
                 <History size={12} className="text-muted-foreground" />
-                <span className="text-[11px] text-muted-foreground font-medium">历史项目</span>
+                <span className="text-[11px] text-muted-foreground font-medium">{t('folderPicker.recentProjects')}</span>
               </div>
               <div className="flex-1 overflow-y-auto px-2 pb-2 space-y-0.5">
                 {recentProjects.map((proj) => (
@@ -213,7 +215,7 @@ export default function FolderPicker({ open, onClose, onSelect, initialPath }: F
                     setInputError(null)
                   }}
                   onKeyDown={handleKeyDown}
-                  placeholder="输入路径，如 /home/user/project ..."
+                  placeholder={t('folderPicker.pathInput')}
                   className="text-[13px] h-8 bg-accent border-transparent focus-visible:border-ring font-mono"
                 />
                 <Button
@@ -223,7 +225,7 @@ export default function FolderPicker({ open, onClose, onSelect, initialPath }: F
                   disabled={validating || !inputPath.trim()}
                   className="flex-shrink-0 text-[12px]"
                 >
-                  {validating ? <Loader2 size={12} className="animate-spin" /> : '前往'}
+                  {validating ? <Loader2 size={12} className="animate-spin" /> : 'Go'}
                 </Button>
               </div>
               {inputError && (
@@ -241,7 +243,7 @@ export default function FolderPicker({ open, onClose, onSelect, initialPath }: F
                       className="hover:text-primary transition-colors flex items-center gap-1"
                     >
                       <Monitor size={10} />
-                      电脑
+                      {t('folderPicker.driveSelect')}
                     </button>
                     <ChevronRight size={10} className="opacity-40" />
                   </span>
@@ -274,7 +276,7 @@ export default function FolderPicker({ open, onClose, onSelect, initialPath }: F
             {currentPath === '__drives__' && (
               <div className="flex items-center gap-1.5 px-4 py-2 text-[11px] text-muted-foreground flex-shrink-0">
                 <Monitor size={10} />
-                <span>选择磁盘驱动器</span>
+                <span>{t('folderPicker.driveSelect')}</span>
               </div>
             )}
 
@@ -283,7 +285,7 @@ export default function FolderPicker({ open, onClose, onSelect, initialPath }: F
               {loading ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 size={20} className="text-primary animate-spin" />
-                  <span className="ml-2 text-[13px] text-muted-foreground">加载中...</span>
+                  <span className="ml-2 text-[13px] text-muted-foreground">{t('common.loading')}</span>
                 </div>
               ) : error ? (
                 <div className="flex items-center justify-center py-12">
@@ -297,13 +299,13 @@ export default function FolderPicker({ open, onClose, onSelect, initialPath }: F
                       className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] text-foreground hover:bg-accent transition-colors"
                     >
                       <ArrowUp size={14} className="opacity-60" />
-                      <span>上级目录</span>
+                      <span>{t('folderPicker.parentDir')}</span>
                     </button>
                   )}
 
                   {directories.length === 0 && !parentPath && (
                     <p className="text-[12px] text-muted-foreground text-center py-8">
-                      此目录为空
+                      {t('folderPicker.emptyDir')}
                     </p>
                   )}
 
@@ -339,7 +341,7 @@ export default function FolderPicker({ open, onClose, onSelect, initialPath }: F
         {/* Footer */}
         <div className="flex items-center justify-between px-5 py-3 border-t border-border">
           <span className="text-[11px] text-muted-foreground truncate max-w-[60%]">
-            {currentPath === '__drives__' ? '请选择磁盘驱动器' : currentPath || '...'}
+            {currentPath === '__drives__' ? t('folderPicker.driveSelect') : currentPath || '...'}
           </span>
           <Button
             size="sm"
@@ -347,7 +349,7 @@ export default function FolderPicker({ open, onClose, onSelect, initialPath }: F
             disabled={!currentPath || currentPath === '__drives__' || loading}
             className="text-[12px]"
           >
-            选择此文件夹
+            {t('folderPicker.selectThis')}
           </Button>
         </div>
       </Card>

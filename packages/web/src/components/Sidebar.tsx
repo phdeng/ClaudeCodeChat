@@ -1,9 +1,10 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Settings, History, X, MessageSquare, Sparkles, Search, Trash2, FolderOpen, Download, FileText, FileJson, FileCode, Pin, Upload, Tag, Eye, Archive, ArchiveRestore, ChevronRight, ChevronDown, GripVertical, BookTemplate, ScrollText, Loader2, Palette, Check, XCircle, MoreHorizontal } from 'lucide-react'
+import { Plus, Settings, History, X, MessageSquare, Sparkles, Search, Trash2, FolderOpen, Download, FileText, FileJson, FileCode, Pin, Upload, Tag, Eye, Archive, ArchiveRestore, ChevronRight, ChevronDown, GripVertical, BookTemplate, ScrollText, Loader2, Palette, Check, XCircle, MoreHorizontal, BookOpen } from 'lucide-react'
 import { toast } from 'sonner'
 import { useSessionStore, type Session } from '../stores/sessionStore'
 import { useCategoryStore } from '../stores/categoryStore'
+import { useTranslation } from '../i18n'
 import { exportSessionAsMarkdown, exportSessionAsJson, exportSessionAsHtml, importSessionFromJson } from '../utils/exportChat'
 import ChatExportPreview from './ChatExportPreview'
 import { cn } from '@/lib/utils'
@@ -28,14 +29,14 @@ interface SidebarProps {
   onClose: () => void
 }
 
-function classifyDate(timestamp: number): '今天' | '昨天' | '更早' {
+function classifyDate(timestamp: number): 'today' | 'yesterday' | 'earlier' {
   const now = new Date()
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
   const yesterdayStart = todayStart - 86_400_000
 
-  if (timestamp >= todayStart) return '今天'
-  if (timestamp >= yesterdayStart) return '昨天'
-  return '更早'
+  if (timestamp >= todayStart) return 'today'
+  if (timestamp >= yesterdayStart) return 'yesterday'
+  return 'earlier'
 }
 
 /** 获取会话中第一个匹配搜索词的消息片段 */
@@ -86,16 +87,16 @@ function getTagColor(tag: string): string {
 // 预设常用标签
 const PRESET_TAGS = ['编程', '学习', '翻译', '工作', '想法']
 
-// 颜色标签：8 种预设颜色
+// 颜色标签：8 种预设颜色（textKey 在渲染时通过 t() 翻译）
 const LABEL_COLORS = [
-  { name: 'red', bg: 'bg-red-400/90', text: '红色' },
-  { name: 'orange', bg: 'bg-orange-400/90', text: '橙色' },
-  { name: 'yellow', bg: 'bg-yellow-400/90', text: '黄色' },
-  { name: 'green', bg: 'bg-green-400/90', text: '绿色' },
-  { name: 'blue', bg: 'bg-blue-400/90', text: '蓝色' },
-  { name: 'purple', bg: 'bg-purple-400/90', text: '紫色' },
-  { name: 'pink', bg: 'bg-pink-400/90', text: '粉色' },
-  { name: 'gray', bg: 'bg-gray-400/90', text: '灰色' },
+  { name: 'red', bg: 'bg-red-400/90', textKey: 'sidebar.colorRed' },
+  { name: 'orange', bg: 'bg-orange-400/90', textKey: 'sidebar.colorOrange' },
+  { name: 'yellow', bg: 'bg-yellow-400/90', textKey: 'sidebar.colorYellow' },
+  { name: 'green', bg: 'bg-green-400/90', textKey: 'sidebar.colorGreen' },
+  { name: 'blue', bg: 'bg-blue-400/90', textKey: 'sidebar.colorBlue' },
+  { name: 'purple', bg: 'bg-purple-400/90', textKey: 'sidebar.colorPurple' },
+  { name: 'pink', bg: 'bg-pink-400/90', textKey: 'sidebar.colorPink' },
+  { name: 'gray', bg: 'bg-gray-400/90', textKey: 'sidebar.colorGray' },
 ]
 
 /** 根据颜色名称获取对应的 bg 类 */
@@ -105,6 +106,7 @@ function getLabelColorBg(colorName: string): string {
 }
 
 export default function Sidebar({ onClose }: SidebarProps) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { sessions, activeSessionId, createSession, deleteSession, togglePinSession, toggleArchiveSession, importSession, addSessionTag, removeSessionTag, reorderSessions, setSessionColorLabel, projectFilter, setProjectFilter, streamingSessions } = useSessionStore()
 
@@ -176,7 +178,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
   const handleGenerateSummary = useCallback(async (session: Session) => {
     if (summarizingId) return // 已有正在生成的摘要
     if (session.messages.length === 0) {
-      toast.error('会话没有消息，无法生成摘要')
+      toast.error(t('sidebar.noMessagesForSummary' as any))
       return
     }
     setSummarizingId(session.id)
@@ -189,8 +191,8 @@ export default function Sidebar({ onClose }: SidebarProps) {
         }),
       })
       if (!resp.ok) {
-        const data = await resp.json().catch(() => ({ error: '请求失败' }))
-        throw new Error(data.error || '生成摘要失败')
+        const data = await resp.json().catch(() => ({ error: t('sidebar.requestFailed' as any) }))
+        throw new Error(data.error || t('sidebar.summaryFailed' as any))
       }
       const data = await resp.json()
       if (data.summary) {
@@ -199,14 +201,14 @@ export default function Sidebar({ onClose }: SidebarProps) {
           next.set(session.id, data.summary)
           return next
         })
-        toast.success('摘要生成成功')
+        toast.success(t('sidebar.summarySuccess' as any))
       }
     } catch (err: any) {
-      toast.error(err.message || '生成摘要失败')
+      toast.error(err.message || t('sidebar.summaryFailed' as any))
     } finally {
       setSummarizingId(null)
     }
-  }, [summarizingId])
+  }, [summarizingId, t])
 
   // 点击外部关闭导出下拉菜单
   useEffect(() => {
@@ -316,14 +318,14 @@ export default function Sidebar({ onClose }: SidebarProps) {
   const groupedSessions = useMemo(() => {
     const groups: { label: string; items: typeof filteredSessions }[] = []
     const map = new Map<string, typeof filteredSessions>()
-    const order = ['已置顶', '今天', '昨天', '更早'] as const
+    const order = ['pinned', 'today', 'yesterday', 'earlier'] as const
 
     // 先分离置顶会话
     const pinned = filteredSessions.filter(s => s.pinned)
     const unpinned = filteredSessions.filter(s => !s.pinned)
 
     if (pinned.length > 0) {
-      map.set('已置顶', pinned)
+      map.set('pinned', pinned)
     }
 
     for (const s of unpinned) {
@@ -343,7 +345,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
   const handleDelete = (sessionId: string) => {
     deleteSession(sessionId)
     setConfirmDeleteId(null)
-    toast('会话已删除')
+    toast(t('sidebar.sessionDeleted' as any))
     if (sessionId === activeSessionId) navigate('/')
   }
 
@@ -361,14 +363,14 @@ export default function Sidebar({ onClose }: SidebarProps) {
       if (result.success && result.session) {
         importSession(result.session)
         navigate(`/chat/${result.session.id}`)
-        toast.success(`已导入会话「${result.session.title}」`)
+        toast.success(t('sidebar.importedSession' as any, { title: result.session.title }))
         if (window.innerWidth < 768) onClose()
       } else {
-        toast.error(`导入失败：${result.error}`)
+        toast.error(t('sidebar.importFailed' as any, { error: result.error || '' }))
       }
     }
     reader.onerror = () => {
-      toast.error('读取文件失败')
+      toast.error(t('sidebar.readFileFailed' as any))
     }
     reader.readAsText(file)
   }
@@ -394,7 +396,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
           size="icon-xs"
           onClick={onClose}
           className="text-foreground"
-          aria-label="关闭侧边栏"
+          aria-label={t('sidebar.closeSidebar' as any)}
         >
           <X size={14} />
         </Button>
@@ -408,14 +410,14 @@ export default function Sidebar({ onClose }: SidebarProps) {
           className="flex-1 border-dashed border-border text-[13px] text-muted-foreground hover:border-primary hover:bg-primary/15 hover:text-primary"
         >
           <Plus size={14} strokeWidth={2} />
-          新建对话
+          {t('sidebar.newChat')}
         </Button>
         <Button
           variant="outline"
           onClick={() => window.dispatchEvent(new CustomEvent('shortcut:templates'))}
           className="flex-shrink-0 border-dashed border-border text-[13px] text-muted-foreground hover:border-primary hover:bg-primary/15 hover:text-primary px-2.5"
-          title="从模板创建"
-          aria-label="从模板创建"
+          title={t('sidebar.createFromTemplate' as any)}
+          aria-label={t('sidebar.createFromTemplate' as any)}
         >
           <BookTemplate size={14} strokeWidth={2} />
         </Button>
@@ -427,7 +429,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
           <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground opacity-50 pointer-events-none" />
           <Input
             type="text"
-            placeholder="搜索对话和消息..."
+            placeholder={t('sidebar.searchPlaceholder' as any)}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-8 pr-10 py-[7px] h-auto bg-accent text-[13px] text-foreground placeholder:text-muted-foreground placeholder:opacity-50 border-transparent focus-visible:border-ring"
@@ -460,9 +462,9 @@ export default function Sidebar({ onClose }: SidebarProps) {
               <span className="truncate flex-1 text-left">
                 {projectFilter
                   ? projectFilter === '__unset__'
-                    ? '未分类'
+                    ? t('sidebar.uncategorized' as any)
                     : projectFilter.split(/[/\\]/).filter(Boolean).pop() || projectFilter
-                  : '全部项目'}
+                  : t('sidebar.allProjects')}
               </span>
               <ChevronDown size={12} className={cn('flex-shrink-0 transition-transform duration-150', showProjectFilter && 'rotate-180')} />
             </button>
@@ -480,7 +482,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
                   )}
                 >
                   <FolderOpen size={12} className="opacity-50 flex-shrink-0" />
-                  <span>全部项目</span>
+                  <span>{t('sidebar.allProjects')}</span>
                   {!projectFilter && <span className="ml-auto text-primary text-[11px]">&#10003;</span>}
                 </button>
                 {/* 各项目路径 */}
@@ -520,7 +522,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
                       )}
                     >
                       <FolderOpen size={12} className="opacity-30 flex-shrink-0" />
-                      <span>未分类</span>
+                      <span>{t('sidebar.uncategorized' as any)}</span>
                       {projectFilter === '__unset__' && <span className="ml-auto text-primary text-[11px]">&#10003;</span>}
                     </button>
                   </>
@@ -543,7 +545,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
                 : 'text-foreground border-border hover:border-muted-foreground/40'
             )}
           >
-            全部
+            {t('sidebar.all' as any)}
           </button>
           {sortedCategories.map((cat) => (
             <button
@@ -565,19 +567,19 @@ export default function Sidebar({ onClose }: SidebarProps) {
 
       {/* 会话列表 */}
       <ScrollArea className="flex-1 px-3 pt-1 pb-2">
-        <nav aria-label="会话列表">
+        <nav aria-label={t('sidebar.sessionHistory' as any)}>
           {filteredSessions.length === 0 && (
             <p className="text-[12px] text-muted-foreground text-center mt-10">
-              {searchQuery.trim() ? '没有匹配的对话' : '暂无对话'}
+              {searchQuery.trim() ? t('sidebar.noMatchingSessions' as any) : t('sidebar.noSessions')}
             </p>
           )}
 
           {groupedSessions.map((group) => (
-            <div key={group.label} className="mb-0.5" role="list" aria-label={group.label}>
+            <div key={group.label} className="mb-0.5" role="list" aria-label={t(`sidebar.${group.label}` as any)}>
               <div className="px-2 pt-4 pb-1.5">
                 <span className="text-[11px] font-medium text-muted-foreground tracking-wide">
-                  {group.label === '已置顶' && <Pin size={10} className="inline mr-1 text-primary opacity-60" />}
-                  {group.label}
+                  {group.label === 'pinned' && <Pin size={10} className="inline mr-1 text-primary opacity-60" />}
+                  {t(`sidebar.${group.label}` as any)}
                 </span>
               </div>
 
@@ -638,14 +640,14 @@ export default function Sidebar({ onClose }: SidebarProps) {
                       <div className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg bg-destructive/5 mb-0.5">
                         <Trash2 size={12} className="text-destructive flex-shrink-0 opacity-70" />
                         <span className="text-[12px] text-destructive truncate flex-1 opacity-80">
-                          确定删除？
+                          {t('sidebar.deleteConfirm')}
                         </span>
                         <Button
                           variant="destructive"
                           size="xs"
                           onClick={() => handleDelete(session.id)}
                         >
-                          删除
+                          {t('common.delete')}
                         </Button>
                         <Button
                           variant="ghost"
@@ -653,7 +655,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
                           onClick={() => setConfirmDeleteId(null)}
                           className="text-foreground"
                         >
-                          取消
+                          {t('common.cancel')}
                         </Button>
                       </div>
                     ) : (
@@ -691,7 +693,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
                           size={12}
                           className="opacity-0 group-hover:opacity-40 cursor-grab active:cursor-grabbing flex-shrink-0 mt-0.5 -ml-0.5"
                           role="button"
-                          aria-label="拖拽排序"
+                          aria-label={t('sidebar.dragToSort' as any)}
                         />
                         <MessageSquare
                             size={13}
@@ -711,13 +713,13 @@ export default function Sidebar({ onClose }: SidebarProps) {
                               )}
                               {session.title}
                               {streamingSessions.has(session.id) && (
-                                <span className="flex-shrink-0 w-2 h-2 rounded-full bg-primary animate-pulse" title="正在对话中..." />
+                                <span className="flex-shrink-0 w-2 h-2 rounded-full bg-primary animate-pulse" title={t('sidebar.chatting' as any)} />
                               )}
                               {/* 未读消息计数 badge */}
                               {(session.unreadCount ?? 0) > 0 && (
                                 <span
                                   className="flex-shrink-0 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-400/90 text-white text-[10px] font-medium leading-none"
-                                  title={`${session.unreadCount} 条未读消息`}
+                                  title={t('sidebar.unreadMessages' as any, { count: session.unreadCount ?? 0 })}
                                 >
                                   {(session.unreadCount ?? 0) > 9 ? '9+' : session.unreadCount}
                                 </span>
@@ -761,7 +763,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
                               <button
                                 onClick={(e) => e.stopPropagation()}
                                 className="p-1 rounded hover:bg-accent/80 text-foreground transition-colors duration-150"
-                                aria-label="会话操作"
+                                aria-label={t('sidebar.sessionActions' as any)}
                               >
                                 <MoreHorizontal size={14} />
                               </button>
@@ -770,7 +772,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
                               {/* 置顶 */}
                               <DropdownMenuItem onSelect={() => togglePinSession(session.id)}>
                                 <Pin size={14} className={session.pinned ? 'fill-current text-primary' : 'opacity-60'} />
-                                {session.pinned ? '取消置顶' : '置顶会话'}
+                                {session.pinned ? t('sidebar.unpinSession' as any) : t('sidebar.pinSession' as any)}
                               </DropdownMenuItem>
 
                               {/* 标签管理 */}
@@ -780,14 +782,14 @@ export default function Sidebar({ onClose }: SidebarProps) {
                                 setTagInput('')
                               }}>
                                 <Tag size={14} className={session.tags && session.tags.length > 0 ? 'text-primary' : 'opacity-60'} />
-                                管理标签
+                                {t('sidebar.manageTags' as any)}
                               </DropdownMenuItem>
 
                               {/* 颜色标签 */}
                               <DropdownMenuSub>
                                 <DropdownMenuSubTrigger>
                                   <Palette size={14} className={session.colorLabel ? 'text-primary' : 'opacity-60'} />
-                                  颜色标签
+                                  {t('sidebar.colorLabel' as any)}
                                 </DropdownMenuSubTrigger>
                                 <DropdownMenuSubContent className="w-40">
                                   {LABEL_COLORS.map((color) => {
@@ -800,7 +802,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
                                         <span
                                           className={cn('w-3 h-3 rounded-full flex-shrink-0', color.bg)}
                                         />
-                                        <span className="flex-1">{color.text}</span>
+                                        <span className="flex-1">{t(color.textKey as any)}</span>
                                         {isSelected && <Check size={12} className="text-primary flex-shrink-0" />}
                                       </DropdownMenuItem>
                                     )
@@ -810,7 +812,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
                                       <DropdownMenuSeparator />
                                       <DropdownMenuItem onSelect={() => setSessionColorLabel(session.id, null)}>
                                         <XCircle size={14} className="opacity-60" />
-                                        清除颜色
+                                        {t('sidebar.clearColor' as any)}
                                       </DropdownMenuItem>
                                     </>
                                   )}
@@ -821,26 +823,26 @@ export default function Sidebar({ onClose }: SidebarProps) {
                               <DropdownMenuSub>
                                 <DropdownMenuSubTrigger>
                                   <Download size={14} className="opacity-60" />
-                                  导出对话
+                                  {t('sidebar.exportChat' as any)}
                                 </DropdownMenuSubTrigger>
                                 <DropdownMenuSubContent className="w-40">
                                   <DropdownMenuItem onSelect={() => {
                                     exportSessionAsMarkdown(session)
-                                    toast.success('已导出为 Markdown')
+                                    toast.success(t('sidebar.exportedMarkdown' as any))
                                   }}>
                                     <FileText size={14} className="opacity-60" />
                                     Markdown (.md)
                                   </DropdownMenuItem>
                                   <DropdownMenuItem onSelect={() => {
                                     exportSessionAsJson(session)
-                                    toast.success('已导出为 JSON')
+                                    toast.success(t('sidebar.exportedJSON' as any))
                                   }}>
                                     <FileJson size={14} className="opacity-60" />
                                     JSON (.json)
                                   </DropdownMenuItem>
                                   <DropdownMenuItem onSelect={() => {
                                     exportSessionAsHtml(session)
-                                    toast.success('已导出为 HTML')
+                                    toast.success(t('sidebar.exportedHTML' as any))
                                   }}>
                                     <FileCode size={14} className="opacity-60" />
                                     HTML (.html)
@@ -848,7 +850,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem onSelect={() => setPreviewSessionId(session.id)}>
                                     <Eye size={14} className="opacity-60" />
-                                    预览 / 打印
+                                    {t('sidebar.previewPrint' as any)}
                                   </DropdownMenuItem>
                                 </DropdownMenuSubContent>
                               </DropdownMenuSub>
@@ -864,17 +866,17 @@ export default function Sidebar({ onClose }: SidebarProps) {
                                   ) : (
                                     <ScrollText size={14} className="opacity-60" />
                                   )}
-                                  生成摘要
+                                  {t('sidebar.generateSummary' as any)}
                                 </DropdownMenuItem>
                               )}
 
                               {/* 归档 */}
                               <DropdownMenuItem onSelect={() => {
                                 toggleArchiveSession(session.id)
-                                toast(session.archived ? '已恢复会话' : '已归档会话')
+                                toast(session.archived ? t('sidebar.sessionRestored' as any) : t('sidebar.sessionArchived' as any))
                               }}>
                                 {session.archived ? <ArchiveRestore size={14} className="opacity-60" /> : <Archive size={14} className="opacity-60" />}
-                                {session.archived ? '恢复会话' : '归档会话'}
+                                {session.archived ? t('sidebar.restoreSession' as any) : t('sidebar.archiveSession' as any)}
                               </DropdownMenuItem>
 
                               <DropdownMenuSeparator />
@@ -885,7 +887,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
                                 className="text-destructive focus:text-destructive focus:bg-destructive/10"
                               >
                                 <Trash2 size={14} />
-                                删除会话
+                                {t('sidebar.deleteSession' as any)}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -901,7 +903,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
                             <div className="flex items-center gap-1.5 mb-2">
                               <input
                                 type="text"
-                                placeholder="输入标签名..."
+                                placeholder={t('sidebar.tagInputPlaceholder' as any)}
                                 value={tagInput}
                                 onChange={(e) => setTagInput(e.target.value)}
                                 onKeyDown={(e) => {
@@ -936,7 +938,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
                               </div>
                             )}
                             <div className="border-t border-border pt-1.5">
-                              <span className="text-[10px] text-muted-foreground mb-1 block">快速添加</span>
+                              <span className="text-[10px] text-muted-foreground mb-1 block">{t('sidebar.quickAdd' as any)}</span>
                               <div className="flex flex-wrap gap-1">
                                 {PRESET_TAGS.filter(
                                   (pt) => !session.tags?.includes(pt)
@@ -972,7 +974,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
                 className="flex items-center gap-2 w-full px-3 py-1.5 text-[12px] text-foreground transition-colors duration-150"
               >
                 <Archive size={13} className="opacity-60" />
-                <span>已归档 ({archivedSessions.length})</span>
+                <span>{t('sidebar.archivedCount' as any, { count: archivedSessions.length })}</span>
                 <ChevronRight size={12} className={cn("ml-auto transition-transform duration-150", showArchived && "rotate-90")} />
               </button>
               {showArchived && archivedSessions.map((session) => {
@@ -983,14 +985,14 @@ export default function Sidebar({ onClose }: SidebarProps) {
                       <div className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg bg-destructive/5 mb-0.5">
                         <Trash2 size={12} className="text-destructive flex-shrink-0 opacity-70" />
                         <span className="text-[12px] text-destructive truncate flex-1 opacity-80">
-                          确定删除？
+                          {t('sidebar.deleteConfirm')}
                         </span>
                         <Button
                           variant="destructive"
                           size="xs"
                           onClick={() => handleDelete(session.id)}
                         >
-                          删除
+                          {t('common.delete')}
                         </Button>
                         <Button
                           variant="ghost"
@@ -998,7 +1000,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
                           onClick={() => setConfirmDeleteId(null)}
                           className="text-foreground"
                         >
-                          取消
+                          {t('common.cancel')}
                         </Button>
                       </div>
                     ) : (
@@ -1023,7 +1025,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
                             <span className="truncate block flex items-center gap-1.5">
                               {session.title}
                               {streamingSessions.has(session.id) && (
-                                <span className="flex-shrink-0 w-2 h-2 rounded-full bg-primary animate-pulse" title="正在对话中..." />
+                                <span className="flex-shrink-0 w-2 h-2 rounded-full bg-primary animate-pulse" title={t('sidebar.chatting' as any)} />
                               )}
                             </span>
                             {session.workingDirectory && (
@@ -1041,7 +1043,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
                               <button
                                 onClick={(e) => e.stopPropagation()}
                                 className="p-1 rounded hover:bg-accent/80 text-foreground transition-colors duration-150"
-                                aria-label="会话操作"
+                                aria-label={t('sidebar.sessionActions' as any)}
                               >
                                 <MoreHorizontal size={14} />
                               </button>
@@ -1049,10 +1051,10 @@ export default function Sidebar({ onClose }: SidebarProps) {
                             <DropdownMenuContent side="right" align="start" className="w-40">
                               <DropdownMenuItem onSelect={() => {
                                 toggleArchiveSession(session.id)
-                                toast('已恢复会话')
+                                toast(t('sidebar.sessionRestored' as any))
                               }}>
                                 <ArchiveRestore size={14} className="opacity-60" />
-                                恢复会话
+                                {t('sidebar.restoreSession' as any)}
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem
@@ -1060,7 +1062,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
                                 className="text-destructive focus:text-destructive focus:bg-destructive/10"
                               >
                                 <Trash2 size={14} />
-                                删除会话
+                                {t('sidebar.deleteSession' as any)}
                               </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
@@ -1091,7 +1093,18 @@ export default function Sidebar({ onClose }: SidebarProps) {
             className="w-full justify-start gap-2.5 px-2.5 py-2 text-[13px] text-foreground"
           >
             <History size={14} className="opacity-60" />
-            会话历史
+            {t('sidebar.sessionHistory' as any)}
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              navigate('/knowledge')
+              if (window.innerWidth < 768) onClose()
+            }}
+            className="w-full justify-start gap-2.5 px-2.5 py-2 text-[13px] text-foreground"
+          >
+            <BookOpen size={14} className="opacity-60" />
+            {t('knowledge.title' as any)}
           </Button>
           <Button
             variant="ghost"
@@ -1102,7 +1115,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
             className="w-full justify-start gap-2.5 px-2.5 py-2 text-[13px] text-foreground"
           >
             <Settings size={14} className="opacity-60" />
-            设置
+            {t('common.settings')}
           </Button>
           <Button
             variant="ghost"
@@ -1110,7 +1123,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
             className="w-full justify-start gap-2.5 px-2.5 py-2 text-[13px] text-foreground"
           >
             <Upload size={14} className="opacity-60" />
-            导入对话
+            {t('sidebar.importChat' as any)}
           </Button>
           {/* 隐藏的文件选择 input */}
           <input
@@ -1163,6 +1176,7 @@ function SessionPreviewCard({
   onMouseEnter: () => void
   onMouseLeave: () => void
 }) {
+  const { t } = useTranslation()
   const { streamingSessions } = useSessionStore()
   // 移动端（宽度 < 768px）不显示悬浮预览
   if (window.innerWidth < 768) return null
@@ -1202,11 +1216,11 @@ function SessionPreviewCard({
         <div className="text-[13px] font-medium truncate flex items-center gap-1.5">
           {session.title}
           {streamingSessions.has(session.id) && (
-            <span className="flex-shrink-0 w-2 h-2 rounded-full bg-primary animate-pulse" title="正在对话中..." />
+            <span className="flex-shrink-0 w-2 h-2 rounded-full bg-primary animate-pulse" title={t('sidebar.chatting' as any)} />
           )}
         </div>
         <div className="text-[11px] text-muted-foreground">
-          {session.messages.length} 条消息 · {new Date(session.createdAt).toLocaleDateString('zh-CN')}
+          {t('sidebar.messageCount' as any, { count: session.messages.length })} · {new Date(session.createdAt).toLocaleDateString()}
         </div>
       </div>
 
@@ -1215,7 +1229,7 @@ function SessionPreviewCard({
         <div className="px-3 py-2 border-b border-border bg-primary/5">
           <div className="flex items-center gap-1.5 mb-1">
             <ScrollText size={11} className="text-primary opacity-70 flex-shrink-0" />
-            <span className="text-[10px] font-medium text-primary opacity-80">摘要</span>
+            <span className="text-[10px] font-medium text-primary opacity-80">{t('sidebar.summary' as any)}</span>
           </div>
           <div className="text-[11px] text-foreground leading-relaxed">
             {summary}
@@ -1226,7 +1240,7 @@ function SessionPreviewCard({
       {/* 消息预览 */}
       <div className="p-2 space-y-2 overflow-auto max-h-[200px]">
         {lastMessages.length === 0 ? (
-          <div className="text-center text-[12px] text-muted-foreground py-4">暂无消息</div>
+          <div className="text-center text-[12px] text-muted-foreground py-4">{t('sidebar.noMessages' as any)}</div>
         ) : (
           lastMessages.map((msg) => (
             <div key={msg.id} className="flex gap-2">

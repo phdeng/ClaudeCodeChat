@@ -19,10 +19,11 @@ import { useSettingsStore } from '../stores/settingsStore'
 import { exportChatAsImage } from '../utils/exportImage'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
+import { useTranslation } from '../i18n'
 
 const KEYBOARD_HINT_ID = 'keyboard-shortcuts-float'
 
-const SHORTCUT_ITEMS = [
+const SHORTCUT_ITEMS_ZH = [
   { keys: ['Ctrl', 'K'], description: '命令面板' },
   { keys: ['Ctrl', 'F'], description: '搜索消息' },
   { keys: ['Ctrl', 'Shift', 'S'], description: '代码片段' },
@@ -30,6 +31,16 @@ const SHORTCUT_ITEMS = [
   { keys: ['Ctrl', 'N'], description: '新建会话' },
   { keys: ['/'], description: '斜杠命令' },
   { keys: ['Esc'], description: '关闭弹窗' },
+]
+
+const SHORTCUT_ITEMS_EN = [
+  { keys: ['Ctrl', 'K'], description: 'Command Palette' },
+  { keys: ['Ctrl', 'F'], description: 'Search Messages' },
+  { keys: ['Ctrl', 'Shift', 'S'], description: 'Code Snippets' },
+  { keys: ['Ctrl', 'Shift', 'Z'], description: 'Zen Mode' },
+  { keys: ['Ctrl', 'N'], description: 'New Session' },
+  { keys: ['/'], description: 'Slash Command' },
+  { keys: ['Esc'], description: 'Close Dialog' },
 ]
 
 function Kbd({ children }: { children: string }) {
@@ -49,6 +60,7 @@ interface FloatingToolbarProps {
 }
 
 export default function FloatingToolbar({ session, selectMode, onSelectModeChange }: FloatingToolbarProps) {
+  const { t, lang } = useTranslation()
   const [activePanel, setActivePanel] = useState<PanelType>(null)
   const toolbarRef = useRef<HTMLDivElement>(null)
 
@@ -124,12 +136,12 @@ export default function FloatingToolbar({ session, selectMode, onSelectModeChang
     const first = session.messages[0].timestamp
     const last = session.messages[session.messages.length - 1].timestamp
     const diffMs = last - first
-    if (diffMs < 60000) return '不到 1 分钟'
+    if (diffMs < 60000) return t('floatingToolbar.lessThanMinute')
     const mins = Math.floor(diffMs / 60000)
     const hours = Math.floor(mins / 60)
     const remainMins = mins % 60
-    if (hours > 0) return remainMins > 0 ? `${hours} 小时 ${remainMins} 分钟` : `${hours} 小时`
-    return `${mins} 分钟`
+    if (hours > 0) return remainMins > 0 ? t('floatingToolbar.hoursMinutes', { h: hours, m: remainMins }) : t('floatingToolbar.hours', { h: hours })
+    return t('floatingToolbar.minutes', { m: mins })
   }, [session?.messages])
 
   const handleAddNote = useCallback(() => {
@@ -138,7 +150,7 @@ export default function FloatingToolbar({ session, selectMode, onSelectModeChang
     if (!trimmed) return
     addContextNote(session.id, trimmed)
     setNewNote('')
-    toast.success('要点已添加')
+    toast.success(t('floatingToolbar.noteAdded'))
   }, [newNote, session?.id, addContextNote])
 
   const handleStartEdit = useCallback((index: number) => {
@@ -151,10 +163,10 @@ export default function FloatingToolbar({ session, selectMode, onSelectModeChang
     const trimmed = editingText.trim()
     if (!trimmed) {
       removeContextNote(session.id, editingIndex)
-      toast('要点已删除')
+      toast(t('floatingToolbar.noteDeleted'))
     } else {
       updateContextNote(session.id, editingIndex, trimmed)
-      toast.success('要点已更新')
+      toast.success(t('floatingToolbar.noteUpdated'))
     }
     setEditingIndex(null)
     setEditingText('')
@@ -176,7 +188,7 @@ export default function FloatingToolbar({ session, selectMode, onSelectModeChang
     const trimmed = titleDraft.trim()
     if (trimmed && trimmed !== session.title) {
       updateSessionTitle(session.id, trimmed)
-      toast.success('主题已更新')
+      toast.success(t('floatingToolbar.topicUpdated'))
     }
     setEditingTitle(false)
     setTitleDraft('')
@@ -185,29 +197,28 @@ export default function FloatingToolbar({ session, selectMode, onSelectModeChang
   const handleCopyContext = useCallback(async () => {
     if (!session) return
     const lines: string[] = []
-    lines.push(`## 会话主题`, session.title, '')
+    lines.push(`## ${t('floatingToolbar.topic')}`, session.title, '')
     if (notes.length > 0) {
-      lines.push(`## 关键要点`)
+      lines.push(`## ${t('floatingToolbar.keyPoints')}`)
       notes.forEach((note, i) => lines.push(`${i + 1}. ${note}`))
       lines.push('')
     }
     if (fileRefs.length > 0) {
-      lines.push(`## 文件引用`)
+      lines.push(`## ${t('floatingToolbar.fileRefs')}`)
       fileRefs.forEach((ref) => lines.push(`- ${ref}`))
       lines.push('')
     }
-    if (duration) lines.push(`## 会话时长`, duration, '')
-    lines.push(`## 消息统计`)
+    if (duration) lines.push(`## ${t('floatingToolbar.duration')}`, duration, '')
     const userCount = session.messages.filter(m => m.role === 'user').length
     const assistantCount = session.messages.filter(m => m.role === 'assistant').length
-    lines.push(`用户消息: ${userCount} 条 | 助手回复: ${assistantCount} 条`)
+    lines.push(`${t('floatingToolbar.user')}: ${userCount} | ${t('floatingToolbar.assistant')}: ${assistantCount}`)
     try {
       await navigator.clipboard.writeText(lines.join('\n'))
       setCopied(true)
-      toast.success('上下文摘要已复制到剪贴板')
+      toast.success(t('floatingToolbar.summarycopied'))
       setTimeout(() => setCopied(false), 2000)
     } catch {
-      toast.error('复制失败')
+      toast.error(t('common.copyFailed'))
     }
   }, [session, notes, fileRefs, duration])
 
@@ -230,7 +241,7 @@ export default function FloatingToolbar({ session, selectMode, onSelectModeChang
               'relative w-8 h-8 flex items-center justify-center transition-colors',
               activePanel === 'context' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
             )}
-            title="上下文摘要"
+            title={t('floatingToolbar.contextSummary')}
           >
             <Brain size={14} />
             {badgeCount > 0 && activePanel !== 'context' && (
@@ -251,7 +262,7 @@ export default function FloatingToolbar({ session, selectMode, onSelectModeChang
                 'w-8 h-8 flex items-center justify-center transition-colors',
                 selectMode ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
               )}
-              title={selectMode ? '退出多选' : '多选消息'}
+              title={selectMode ? t('floatingToolbar.exitSelect') : t('floatingToolbar.selectMessages')}
             >
               <CheckSquare size={14} />
             </button>
@@ -266,13 +277,13 @@ export default function FloatingToolbar({ session, selectMode, onSelectModeChang
               onClick={() => {
                 if (session && session.messages.length > 0) {
                   exportChatAsImage(session.title, session.messages)
-                  toast.success('正在生成图片...')
+                  toast.success(t('floatingToolbar.generatingImage'))
                 } else {
-                  toast('没有可导出的消息')
+                  toast(t('floatingToolbar.noMessagesExport'))
                 }
               }}
               className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent/50 transition-colors"
-              title="导出对话长图"
+              title={t('floatingToolbar.exportImage')}
             >
               <Camera size={14} />
             </button>
@@ -292,7 +303,7 @@ export default function FloatingToolbar({ session, selectMode, onSelectModeChang
               'w-8 h-8 flex items-center justify-center transition-colors',
               activePanel === 'keyboard' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-accent/50'
             )}
-            title="快捷键速查"
+            title={t('floatingToolbar.keyboardShortcuts')}
           >
             <Keyboard size={14} />
           </button>
@@ -305,13 +316,13 @@ export default function FloatingToolbar({ session, selectMode, onSelectModeChang
           <div className="flex items-center justify-between px-3 py-2.5 border-b border-border">
             <div className="flex items-center gap-2">
               <Brain size={14} className="text-primary" />
-              <span className="text-[12px] font-medium text-foreground">上下文摘要</span>
+              <span className="text-[12px] font-medium text-foreground">{t('floatingToolbar.contextSummary')}</span>
             </div>
             <div className="flex items-center gap-1">
               <button
                 onClick={handleCopyContext}
                 className="p-1 rounded hover:bg-accent text-muted-foreground hover:text-foreground transition-colors"
-                title="复制摘要"
+                title={t('floatingToolbar.copySummary')}
               >
                 {copied ? <Check size={12} className="text-green-400" /> : <Copy size={12} />}
               </button>
@@ -329,7 +340,7 @@ export default function FloatingToolbar({ session, selectMode, onSelectModeChang
             <div>
               <div className="flex items-center gap-1.5 mb-1">
                 <StickyNote size={11} className="text-muted-foreground" />
-                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">主题</span>
+                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">{t('floatingToolbar.topic')}</span>
               </div>
               {editingTitle ? (
                 <div className="flex gap-1">
@@ -368,7 +379,7 @@ export default function FloatingToolbar({ session, selectMode, onSelectModeChang
             <div>
               <div className="flex items-center gap-1.5 mb-1">
                 <Brain size={11} className="text-muted-foreground" />
-                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">要点</span>
+                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">{t('floatingToolbar.keyPoints')}</span>
                 <span className="text-[10px] text-muted-foreground">({notes.length})</span>
               </div>
               {notes.length > 0 && (
@@ -404,7 +415,7 @@ export default function FloatingToolbar({ session, selectMode, onSelectModeChang
                               <Pencil size={9} />
                             </button>
                             <button
-                              onClick={() => { removeContextNote(session!.id, index); toast('要点已删除') }}
+                              onClick={() => { removeContextNote(session!.id, index); toast(t('floatingToolbar.noteDeleted')) }}
                               className="p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
                             >
                               <X size={9} />
@@ -422,7 +433,7 @@ export default function FloatingToolbar({ session, selectMode, onSelectModeChang
                   value={newNote}
                   onChange={(e) => setNewNote(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') handleAddNote() }}
-                  placeholder="添加要点..."
+                  placeholder={t('floatingToolbar.addNote')}
                   className="flex-1 text-[11px] px-2 py-1 rounded border border-border/60 bg-background/50 text-foreground placeholder:text-muted-foreground/50 outline-none focus:border-primary/50 transition-colors"
                 />
                 <Button variant="ghost" size="icon-xs" onClick={handleAddNote} disabled={!newNote.trim()} className="text-primary disabled:opacity-30">
@@ -436,7 +447,7 @@ export default function FloatingToolbar({ session, selectMode, onSelectModeChang
               <div>
                 <div className="flex items-center gap-1.5 mb-1">
                   <FileCode2 size={11} className="text-muted-foreground" />
-                  <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">文件引用</span>
+                  <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">{t('floatingToolbar.fileRefs')}</span>
                   <span className="text-[10px] text-muted-foreground">({fileRefs.length})</span>
                 </div>
                 <div className="flex flex-wrap gap-1">
@@ -455,14 +466,14 @@ export default function FloatingToolbar({ session, selectMode, onSelectModeChang
               {duration && (
                 <div className="flex items-center gap-1.5">
                   <Clock size={11} className="text-muted-foreground" />
-                  <span className="text-[10px] text-muted-foreground">时长:</span>
+                  <span className="text-[10px] text-muted-foreground">{t('floatingToolbar.duration')}:</span>
                   <span className="text-[10px] text-foreground">{duration}</span>
                 </div>
               )}
               <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                <span>用户: {session!.messages.filter(m => m.role === 'user').length}</span>
-                <span>助手: {session!.messages.filter(m => m.role === 'assistant').length}</span>
-                <span>字数: {session!.messages.reduce((sum, m) => sum + m.content.length, 0).toLocaleString()}</span>
+                <span>{t('floatingToolbar.user')}: {session!.messages.filter(m => m.role === 'user').length}</span>
+                <span>{t('floatingToolbar.assistant')}: {session!.messages.filter(m => m.role === 'assistant').length}</span>
+                <span>{t('floatingToolbar.wordCount')}: {session!.messages.reduce((sum, m) => sum + m.content.length, 0).toLocaleString()}</span>
               </div>
             </div>
           </div>
@@ -475,7 +486,7 @@ export default function FloatingToolbar({ session, selectMode, onSelectModeChang
           <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-border">
             <div className="flex items-center gap-2">
               <Keyboard size={14} className="text-primary" />
-              <span className="text-[12px] font-semibold text-foreground">快捷键速查</span>
+              <span className="text-[12px] font-semibold text-foreground">{t('floatingToolbar.keyboardShortcuts')}</span>
             </div>
             <button
               onClick={() => setActivePanel(null)}
@@ -485,7 +496,7 @@ export default function FloatingToolbar({ session, selectMode, onSelectModeChang
             </button>
           </div>
           <div className="px-3.5 py-2 space-y-1">
-            {SHORTCUT_ITEMS.map((item, index) => (
+            {(lang === 'zh' ? SHORTCUT_ITEMS_ZH : SHORTCUT_ITEMS_EN).map((item, index) => (
               <div key={index} className="flex items-center justify-between py-1">
                 <span className="text-[12px] text-muted-foreground">{item.description}</span>
                 <div className="flex items-center gap-0.5 ml-3 flex-shrink-0">
@@ -504,10 +515,10 @@ export default function FloatingToolbar({ session, selectMode, onSelectModeChang
               onClick={(e) => { e.stopPropagation(); dismissHint(KEYBOARD_HINT_ID); setActivePanel(null) }}
               className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
             >
-              不再显示
+              {t('floatingToolbar.dontShowAgain')}
             </button>
             <span className="text-[10px] text-muted-foreground">
-              按 <Kbd>?</Kbd> 查看全部
+              {t('floatingToolbar.pressForAll', { key: '?' })}
             </span>
           </div>
         </div>

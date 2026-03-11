@@ -8,6 +8,7 @@ import CommandPalette, { type CommandPaletteItem, type CommandPaletteHandle } fr
 import { usePhrasesStore } from '@/stores/phrasesStore'
 import { useSessionStore, type Message } from '@/stores/sessionStore'
 import { useIsMobile } from '@/hooks/useMediaQuery'
+import { useTranslation } from '../i18n'
 
 // ==================== 图片附件类型 ====================
 
@@ -141,6 +142,7 @@ export default function ChatInput({
   quotedMessage,
   onClearQuote,
 }: ChatInputProps) {
+  const { t, lang } = useTranslation()
   const isMobile = useIsMobile()
   const [input, setInput] = useState('')
   const [trigger, setTrigger] = useState<TriggerState | null>(null)
@@ -250,8 +252,9 @@ export default function ChatInput({
 
       // 生成引用文本：内容前 50 个字符
       const preview = message.content.slice(0, 50).replace(/\n/g, ' ')
-      const roleName = message.role === 'user' ? '用户' : 'Claude'
-      const quoteText = `> [引用${roleName}] ${preview}${message.content.length > 50 ? '...' : ''}\n\n`
+      const roleName = message.role === 'user' ? (lang === 'zh' ? '用户' : 'User') : 'Claude'
+      const quoteLabel = lang === 'zh' ? '引用' : 'Quote'
+      const quoteText = `> [${quoteLabel}${roleName}] ${preview}${message.content.length > 50 ? '...' : ''}\n\n`
 
       // 替换 #搜索词 为引用文本
       const before = input.slice(0, trigger.startIndex)
@@ -270,7 +273,7 @@ export default function ChatInput({
         }
       })
     },
-    [input, trigger]
+    [input, trigger, lang]
   )
 
   // 点击外部关闭统计面板
@@ -388,7 +391,7 @@ export default function ChatInput({
   /** 处理图片文件，转为 base64 并添加到附件列表 */
   const processImageFile = useCallback((file: File) => {
     if (file.size > MAX_IMAGE_SIZE) {
-      toast.error('图片大小不能超过 5MB')
+      toast.error(lang === 'zh' ? '图片大小不能超过 5MB' : 'Image size cannot exceed 5MB')
       return
     }
 
@@ -399,7 +402,7 @@ export default function ChatInput({
       // 避免多张图片同时粘贴时超过限制的竞态条件
       setAttachedImages(prev => {
         if (prev.length >= MAX_IMAGES) {
-          toast.error(`最多只能添加 ${MAX_IMAGES} 张图片`)
+          toast.error(lang === 'zh' ? `最多只能添加 ${MAX_IMAGES} 张图片` : `Cannot add more than ${MAX_IMAGES} images`)
           return prev
         }
         return [...prev, {
@@ -411,10 +414,10 @@ export default function ChatInput({
       })
     }
     reader.onerror = () => {
-      toast.error('图片读取失败')
+      toast.error(lang === 'zh' ? '图片读取失败' : 'Failed to read image')
     }
     reader.readAsDataURL(file)
-  }, [])
+  }, [lang])
 
   /** 移除已附加的图片 */
   const removeImage = useCallback((id: string) => {
@@ -444,12 +447,12 @@ export default function ChatInput({
       if (file.type.startsWith('image/')) {
         processImageFile(file)
       } else {
-        toast.error(`不支持的文件类型: ${file.name}`)
+        toast.error(lang === 'zh' ? `不支持的文件类型: ${file.name}` : `Unsupported file type: ${file.name}`)
       }
     }
     // 清空 input 以便再次选择同一文件
     e.target.value = ''
-  }, [processImageFile])
+  }, [processImageFile, lang])
 
   // 字数统计与 token 估算
   const charCount = input.length
@@ -467,14 +470,14 @@ export default function ChatInput({
       (window as unknown as { SpeechRecognition?: SpeechRecognitionConstructor }).SpeechRecognition ||
       (window as unknown as { webkitSpeechRecognition?: SpeechRecognitionConstructor }).webkitSpeechRecognition
     if (!SpeechRecognitionCtor) {
-      toast.error('当前浏览器不支持语音识别，请使用 Chrome 或 Edge')
+      toast.error(lang === 'zh' ? '当前浏览器不支持语音识别，请使用 Chrome 或 Edge' : 'Speech recognition not supported. Please use Chrome or Edge')
       return
     }
 
     const recognition = new SpeechRecognitionCtor()
     recognition.continuous = true       // 持续识别
     recognition.interimResults = true   // 实时显示中间结果
-    recognition.lang = 'zh-CN'         // 默认中文
+    recognition.lang = lang === 'zh' ? 'zh-CN' : 'en-US'
 
     // 记录开始录音时的已有输入内容
     inputBeforeListeningRef.current = input
@@ -506,7 +509,7 @@ export default function ChatInput({
     recognition.onerror = (event: ISpeechRecognitionErrorEvent) => {
       setIsListening(false)
       if (event.error !== 'aborted' && event.error !== 'no-speech') {
-        toast.error('语音识别出错: ' + event.error)
+        toast.error((lang === 'zh' ? '语音识别出错: ' : 'Speech recognition error: ') + event.error)
       }
     }
 
@@ -517,8 +520,8 @@ export default function ChatInput({
     recognitionRef.current = recognition
     recognition.start()
     setIsListening(true)
-    toast.success('开始语音识别，请说话...')
-  }, [input])
+    toast.success(lang === 'zh' ? '开始语音识别，请说话...' : 'Listening, please speak...')
+  }, [input, lang])
 
   const stopListening = useCallback(() => {
     recognitionRef.current?.stop()
@@ -546,7 +549,8 @@ export default function ChatInput({
     const text = textarea.value
     const selected = text.slice(start, end)
 
-    const newText = text.slice(0, start) + prefix + (selected || '文本') + suffix + text.slice(end)
+    const placeholder = lang === 'zh' ? '文本' : 'text'
+    const newText = text.slice(0, start) + prefix + (selected || placeholder) + suffix + text.slice(end)
     setInput(newText)
 
     // 设置光标位置
@@ -556,13 +560,13 @@ export default function ChatInput({
         textarea.selectionStart = start + prefix.length
         textarea.selectionEnd = start + prefix.length + selected.length
       } else {
-        // 如果没有选中文本，选中默认文本「文本」
+        // 如果没有选中文本，选中默认占位文本
         textarea.selectionStart = start + prefix.length
-        textarea.selectionEnd = start + prefix.length + 2  // "文本" 两个字
+        textarea.selectionEnd = start + prefix.length + placeholder.length
       }
       textarea.focus()
     })
-  }, [])
+  }, [lang])
 
   // 组件卸载时清理语音识别
   useEffect(() => {
@@ -698,7 +702,7 @@ export default function ChatInput({
     tempInputRef.current = ''
 
     // 构建发送内容：如果有引用消息，在前面添加 Markdown 引用格式
-    let sendContent = trimmed || '（见图片）'
+    let sendContent = trimmed || (lang === 'zh' ? '（见图片）' : '(see images)')
     if (quotedMessage) {
       const quotedText = quotedMessage.content.slice(0, 200)
       const quotedLines = quotedText.split('\n').map(line => `> ${line}`).join('\n')
@@ -733,7 +737,7 @@ export default function ChatInput({
 
       if (item.type === 'command') {
         // 直接执行类命令：由父组件处理
-        const directCommands = ['/clear', '/new', '/settings', '/sessions', '/cost', '/system', '/prompts', '/clear-context', '/git', '/files', '/snippets', '/exportimage', '/pin', '/zen', '/theme']
+        const directCommands = ['/clear', '/new', '/settings', '/sessions', '/cost', '/system', '/prompts', '/clear-context', '/git', '/files', '/snippets', '/exportimage', '/pin', '/zen', '/theme', '/workflow']
         if (directCommands.includes(item.value)) {
           setInput('')
           setTrigger(null)
@@ -1016,7 +1020,7 @@ export default function ChatInput({
     if (!workingDirectory && !dismissedHints.includes('no-working-dir')) {
       hints.push({
         id: 'no-working-dir',
-        text: '选择项目文件夹以获得更好的代码理解能力',
+        text: lang === 'zh' ? '选择项目文件夹以获得更好的代码理解能力' : 'Select a project folder for better code understanding',
         type: 'project',
         icon: 'folder',
       })
@@ -1025,7 +1029,7 @@ export default function ChatInput({
     if (workingDirectory && !activeSession?.systemPrompt && !dismissedHints.includes('no-system-prompt')) {
       hints.push({
         id: 'no-system-prompt',
-        text: '设置系统提示词可以让 Claude 更了解你的项目',
+        text: lang === 'zh' ? '设置系统提示词可以让 Claude 更了解你的项目' : 'Set a system prompt to help Claude understand your project',
         type: 'project',
         action: '/system',
         icon: 'settings',
@@ -1036,7 +1040,7 @@ export default function ChatInput({
     if (sessionMessages.length > 20 && !dismissedHints.includes('long-conversation')) {
       hints.push({
         id: 'long-conversation',
-        text: '对话较长，可以创建新会话以获得更好的响应质量',
+        text: lang === 'zh' ? '对话较长，可以创建新会话以获得更好的响应质量' : 'Long conversation. Consider starting a new session for better responses',
         type: 'conversation',
         action: '/new',
         icon: 'warning',
@@ -1060,7 +1064,7 @@ export default function ChatInput({
       if (hasError) {
         hints.push({
           id: 'recent-error',
-          text: '遇到错误？尝试更详细地描述问题或提供错误日志',
+          text: lang === 'zh' ? '遇到错误？尝试更详细地描述问题或提供错误日志' : 'Got errors? Try describing the issue in more detail or providing error logs',
           type: 'conversation',
           icon: 'warning',
         })
@@ -1082,7 +1086,7 @@ export default function ChatInput({
             className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground/70 transition-colors mb-1 cursor-pointer"
           >
             <Lightbulb size={10} />
-            <span>智能提示 ({contextHints.length})</span>
+            <span>{lang === 'zh' ? '智能提示' : 'Smart hints'} ({contextHints.length})</span>
             {hintsCollapsed ? <ChevronDown size={10} /> : <ChevronUp size={10} />}
           </button>
 
@@ -1153,7 +1157,7 @@ export default function ChatInput({
         {isDragging && (
           <div className="absolute inset-0 z-10 bg-primary/10 border-2 border-dashed border-primary rounded-xl flex items-center justify-center">
             <span className="text-primary text-[13px] font-medium pointer-events-none">
-              拖拽文件或图片到此处
+              {lang === 'zh' ? '拖拽文件或图片到此处' : 'Drop files or images here'}
             </span>
           </div>
         )}
@@ -1188,7 +1192,7 @@ export default function ChatInput({
               <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
                 <MessageSquareQuote size={12} className="text-muted-foreground" />
                 <span className="text-[11px] text-muted-foreground font-medium">
-                  引用历史消息
+                  {lang === 'zh' ? '引用历史消息' : 'Quote message'}
                 </span>
                 {trigger.query && (
                   <span className="text-[11px] text-primary ml-auto font-mono truncate max-w-[140px]">
@@ -1202,7 +1206,9 @@ export default function ChatInput({
                 {hashFilteredMessages.length === 0 ? (
                   <div className="flex items-center justify-center py-6">
                     <span className="text-[12px] text-muted-foreground">
-                      {sessionMessages.length === 0 ? '当前会话暂无消息' : '没有匹配的消息'}
+                      {sessionMessages.length === 0
+                        ? (lang === 'zh' ? '当前会话暂无消息' : 'No messages in this session')
+                        : (lang === 'zh' ? '没有匹配的消息' : 'No matching messages')}
                     </span>
                   </div>
                 ) : (
@@ -1253,13 +1259,13 @@ export default function ChatInput({
               {/* 底部快捷键提示 */}
               <div className="flex items-center gap-3 px-3 py-1.5 border-t border-border">
                 <span className="text-[10px] text-muted-foreground">
-                  <kbd className="px-1 py-0.5 rounded bg-accent text-[9px] font-mono">&#8593;&#8595;</kbd> 选择
+                  <kbd className="px-1 py-0.5 rounded bg-accent text-[9px] font-mono">&#8593;&#8595;</kbd> {lang === 'zh' ? '选择' : 'Select'}
                 </span>
                 <span className="text-[10px] text-muted-foreground">
-                  <kbd className="px-1 py-0.5 rounded bg-accent text-[9px] font-mono">Enter</kbd> 确认
+                  <kbd className="px-1 py-0.5 rounded bg-accent text-[9px] font-mono">Enter</kbd> {t('common.confirm')}
                 </span>
                 <span className="text-[10px] text-muted-foreground">
-                  <kbd className="px-1 py-0.5 rounded bg-accent text-[9px] font-mono">Esc</kbd> 关闭
+                  <kbd className="px-1 py-0.5 rounded bg-accent text-[9px] font-mono">Esc</kbd> {t('common.close')}
                 </span>
               </div>
             </div>
@@ -1279,7 +1285,7 @@ export default function ChatInput({
                 <button
                   onClick={() => removeImage(img.id)}
                   className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-                  title="移除图片"
+                  title={t('common.remove')}
                 >
                   <X size={12} />
                 </button>
@@ -1296,7 +1302,7 @@ export default function ChatInput({
           <div className="flex items-start gap-2 px-3 py-2 mx-3 mt-2 rounded-lg bg-accent/30 border-l-2 border-primary/50">
             <div className="flex-1 min-w-0">
               <span className="text-[11px] text-primary font-medium">
-                引用 {quotedMessage.role === 'user' ? '用户' : 'Claude'} 的消息
+                {t('messageList.quoteReply')} {quotedMessage.role === 'user' ? t('floatingToolbar.user') : 'Claude'}
               </span>
               <p className="text-[12px] text-muted-foreground line-clamp-2 mt-0.5">
                 {quotedMessage.content.slice(0, 150)}
@@ -1329,7 +1335,7 @@ export default function ChatInput({
           onPaste={handlePaste}
           onClick={handleCursorChange}
           onSelect={handleCursorChange}
-          placeholder={isMobile ? "输入消息..." : "输入消息... (@ 引用文件, / 命令, # 引用消息, Ctrl+V 粘贴图片)"}
+          placeholder={isMobile ? t('chatInput.placeholder').replace(/\s*\(.*\)$/, '') : t('chatInput.placeholder')}
           rows={1}
           className={cn(
             "w-full bg-transparent text-foreground placeholder:text-muted-foreground placeholder:opacity-50 resize-none px-4 py-3 outline-none leading-[1.6]",
@@ -1343,7 +1349,7 @@ export default function ChatInput({
         {isListening && (
           <div className="px-4 pb-1 text-[11px] text-red-400/80 animate-pulse flex items-center gap-1">
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-400/90" />
-            正在录音...
+            {t('chatInput.voiceListening')}
           </div>
         )}
 
@@ -1359,7 +1365,7 @@ export default function ChatInput({
               size="icon-xs"
               onClick={() => fileInputRef.current?.click()}
               className="text-foreground"
-              title="上传图片"
+              title={t('chatInput.uploadImage')}
             >
               <ImagePlus size={14} />
             </Button>
@@ -1376,7 +1382,7 @@ export default function ChatInput({
                   ? 'bg-red-400/90 text-white hover:bg-red-500 animate-pulse'
                   : 'text-foreground'
               )}
-              title={isListening ? '停止录音' : '语音输入'}
+              title={isListening ? t('chatInput.voiceListening') : t('chatInput.voiceInput')}
             >
               {isListening ? <MicOff size={14} /> : <Mic size={14} />}
             </Button>
@@ -1414,7 +1420,7 @@ export default function ChatInput({
           {draftSaved && (
             <span className="flex items-center gap-0.5 mr-1.5 text-muted-foreground select-none">
               <Save size={10} />
-              <span className="text-[10px]">草稿已保存</span>
+              <span className="text-[10px]">{lang === 'zh' ? '草稿已保存' : 'Draft saved'}</span>
             </span>
           )}
           {/* 格式化按钮 — 移动端隐藏 */}
@@ -1431,7 +1437,7 @@ export default function ChatInput({
                   <Bold size={11} />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="top" className="text-[10px]">粗体 (Ctrl+B)</TooltipContent>
+              <TooltipContent side="top" className="text-[10px]">{lang === 'zh' ? '粗体' : 'Bold'} (Ctrl+B)</TooltipContent>
             </Tooltip>
 
             <Tooltip>
@@ -1445,7 +1451,7 @@ export default function ChatInput({
                   <Italic size={11} />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="top" className="text-[10px]">斜体 (Ctrl+I)</TooltipContent>
+              <TooltipContent side="top" className="text-[10px]">{lang === 'zh' ? '斜体' : 'Italic'} (Ctrl+I)</TooltipContent>
             </Tooltip>
 
             <Tooltip>
@@ -1459,7 +1465,7 @@ export default function ChatInput({
                   <Code size={11} />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="top" className="text-[10px]">行内代码 (Ctrl+`)</TooltipContent>
+              <TooltipContent side="top" className="text-[10px]">{lang === 'zh' ? '行内代码' : 'Inline code'} (Ctrl+`)</TooltipContent>
             </Tooltip>
 
             {/* 快捷短语按钮 */}
@@ -1488,13 +1494,13 @@ export default function ChatInput({
                     >
                       {/* 头部 */}
                       <div className="flex items-center justify-between px-3 py-2 border-b border-border">
-                        <span className="text-xs font-medium text-foreground">快捷短语</span>
+                        <span className="text-xs font-medium text-foreground">{lang === 'zh' ? '快捷短语' : 'Quick phrases'}</span>
                         <Button
                           variant="ghost"
                           size="icon-xs"
                           onClick={() => { setShowPhraseForm(v => !v); setEditingPhraseId(null); setPhraseForm({ label: '', content: '' }) }}
                           className="h-5 w-5 text-foreground cursor-pointer"
-                          title="添加短语"
+                          title={lang === 'zh' ? '添加短语' : 'Add phrase'}
                         >
                           <Plus size={12} />
                         </Button>
@@ -1504,7 +1510,7 @@ export default function ChatInput({
                       <div className="max-h-48 overflow-y-auto">
                         {phrases.length === 0 ? (
                           <div className="px-3 py-4 text-center text-xs text-muted-foreground">
-                            暂无短语，点击 + 添加
+                            {lang === 'zh' ? '暂无短语，点击 + 添加' : 'No phrases yet, click + to add'}
                           </div>
                         ) : (
                           phrases.map((phrase) => (
@@ -1521,14 +1527,14 @@ export default function ChatInput({
                                 <button
                                   onClick={(e) => { e.stopPropagation(); startEditPhrase(phrase.id, phrase.label, phrase.content) }}
                                   className="p-0.5 text-foreground rounded cursor-pointer"
-                                  title="编辑"
+                                  title={t('common.edit')}
                                 >
                                   <Pencil size={10} />
                                 </button>
                                 <button
                                   onClick={(e) => { e.stopPropagation(); deletePhrase(phrase.id) }}
                                   className="p-0.5 text-muted-foreground hover:text-destructive rounded cursor-pointer"
-                                  title="删除"
+                                  title={t('common.delete')}
                                 >
                                   <Trash2 size={10} />
                                 </button>
@@ -1542,18 +1548,18 @@ export default function ChatInput({
                       {showPhraseForm && (
                         <div className="border-t border-border px-3 py-2 space-y-1.5">
                           <div className="text-[10px] text-muted-foreground font-medium">
-                            {editingPhraseId ? '编辑短语' : '新建短语'}
+                            {editingPhraseId ? (lang === 'zh' ? '编辑短语' : 'Edit phrase') : (lang === 'zh' ? '新建短语' : 'New phrase')}
                           </div>
                           <input
                             type="text"
-                            placeholder="标题（如：代码审查）"
+                            placeholder={lang === 'zh' ? '标题（如：代码审查）' : 'Title (e.g. Code Review)'}
                             value={phraseForm.label}
                             onChange={(e) => setPhraseForm(prev => ({ ...prev, label: e.target.value }))}
                             onKeyDown={(e) => e.stopPropagation()}
                             className="w-full text-xs px-2 py-1 rounded border border-border bg-background text-foreground outline-none focus:border-primary"
                           />
                           <textarea
-                            placeholder="短语内容..."
+                            placeholder={lang === 'zh' ? '短语内容...' : 'Phrase content...'}
                             value={phraseForm.content}
                             onChange={(e) => setPhraseForm(prev => ({ ...prev, content: e.target.value }))}
                             onKeyDown={(e) => e.stopPropagation()}
@@ -1567,7 +1573,7 @@ export default function ChatInput({
                               onClick={() => { setShowPhraseForm(false); setEditingPhraseId(null); setPhraseForm({ label: '', content: '' }) }}
                               className="h-6 text-[10px] px-2 cursor-pointer"
                             >
-                              取消
+                              {t('common.cancel')}
                             </Button>
                             <Button
                               variant="default"
@@ -1576,7 +1582,7 @@ export default function ChatInput({
                               disabled={!phraseForm.label.trim() || !phraseForm.content.trim()}
                               className="h-6 text-[10px] px-2 cursor-pointer"
                             >
-                              {editingPhraseId ? '更新' : '保存'}
+                              {editingPhraseId ? (lang === 'zh' ? '更新' : 'Update') : t('common.save')}
                             </Button>
                           </div>
                         </div>
@@ -1585,7 +1591,7 @@ export default function ChatInput({
                   )}
                 </div>
               </TooltipTrigger>
-              {!showPhrases && <TooltipContent side="top" className="text-[10px]">快捷短语</TooltipContent>}
+              {!showPhrases && <TooltipContent side="top" className="text-[10px]">{lang === 'zh' ? '快捷短语' : 'Quick phrases'}</TooltipContent>}
             </Tooltip>
           </TooltipProvider>
           )}
@@ -1595,11 +1601,11 @@ export default function ChatInput({
 
           {/* 中间：快捷键提示 */}
           {isMobile ? (
-            <p>Enter 发送 · / 命令</p>
+            <p>{t('chatInput.enterSend')} · {t('chatInput.slashCommand')}</p>
           ) : (
             <>
-              <p className="hidden sm:block">Shift+Enter 换行 · Enter 发送 · / 命令 · @ 文件 · # 引用</p>
-              <p className="sm:hidden">Enter 发送 · / 命令</p>
+              <p className="hidden sm:block">{t('chatInput.shiftEnterNewline')} · {t('chatInput.enterSend')} · {t('chatInput.slashCommand')} · {t('chatInput.atFile')} · {t('chatInput.hashQuote')}</p>
+              <p className="sm:hidden">{t('chatInput.enterSend')} · {t('chatInput.slashCommand')}</p>
             </>
           )}
         </div>
@@ -1613,7 +1619,7 @@ export default function ChatInput({
                 isOverLimit && 'text-destructive'
               )}
             >
-              {charCount} 字 · ~{tokenCount} tokens
+              {charCount} {lang === 'zh' ? '字' : 'chars'} · ~{tokenCount} tokens
             </p>
           )}
 
@@ -1635,7 +1641,7 @@ export default function ChatInput({
                       <BarChart2 size={12} />
                     </button>
                   </TooltipTrigger>
-                  {!showStats && <TooltipContent side="top" className="text-[10px]">会话统计</TooltipContent>}
+                  {!showStats && <TooltipContent side="top" className="text-[10px]">{lang === 'zh' ? '会话统计' : 'Session stats'}</TooltipContent>}
                 </Tooltip>
               </TooltipProvider>
 
@@ -1647,7 +1653,7 @@ export default function ChatInput({
                 >
                   {/* 标题栏 */}
                   <div className="flex items-center justify-between px-3 py-2 border-b border-border">
-                    <span className="text-xs font-medium text-foreground">会话统计</span>
+                    <span className="text-xs font-medium text-foreground">{lang === 'zh' ? '会话统计' : 'Session stats'}</span>
                     <button
                       onClick={() => setShowStats(false)}
                       className="text-foreground p-0.5 rounded cursor-pointer"
@@ -1664,7 +1670,7 @@ export default function ChatInput({
                         {sessionStats.userCount + sessionStats.assistantCount}
                       </span>
                       <span className="text-[11px] text-muted-foreground">
-                        总消息 (用户 {sessionStats.userCount} / 助手 {sessionStats.assistantCount})
+                        {lang === 'zh' ? `总消息 (用户 ${sessionStats.userCount} / 助手 ${sessionStats.assistantCount})` : `Total (User ${sessionStats.userCount} / Assistant ${sessionStats.assistantCount})`}
                       </span>
                     </div>
 
@@ -1673,7 +1679,7 @@ export default function ChatInput({
                       <span className="text-lg font-bold text-foreground">
                         {sessionStats.totalChars.toLocaleString()}
                       </span>
-                      <span className="text-[11px] text-muted-foreground">总字数</span>
+                      <span className="text-[11px] text-muted-foreground">{lang === 'zh' ? '总字数' : 'Total chars'}</span>
                     </div>
 
                     {/* 平均每条消息字数 */}
@@ -1681,7 +1687,7 @@ export default function ChatInput({
                       <span className="text-lg font-bold text-foreground">
                         {sessionStats.avgChars.toLocaleString()}
                       </span>
-                      <span className="text-[11px] text-muted-foreground">平均字数/条</span>
+                      <span className="text-[11px] text-muted-foreground">{lang === 'zh' ? '平均字数/条' : 'Avg chars/msg'}</span>
                     </div>
 
                     {/* 最长消息字数 */}
@@ -1689,7 +1695,7 @@ export default function ChatInput({
                       <span className="text-lg font-bold text-foreground">
                         {sessionStats.maxChars.toLocaleString()}
                       </span>
-                      <span className="text-[11px] text-muted-foreground">最长消息字数</span>
+                      <span className="text-[11px] text-muted-foreground">{lang === 'zh' ? '最长消息字数' : 'Longest message'}</span>
                     </div>
 
                     {/* 代码块数量 */}
@@ -1697,7 +1703,7 @@ export default function ChatInput({
                       <span className="text-lg font-bold text-foreground">
                         {sessionStats.codeBlocks}
                       </span>
-                      <span className="text-[11px] text-muted-foreground">代码块数量</span>
+                      <span className="text-[11px] text-muted-foreground">{lang === 'zh' ? '代码块数量' : 'Code blocks'}</span>
                     </div>
 
                     {/* 会话时长 */}
@@ -1705,7 +1711,7 @@ export default function ChatInput({
                       <span className="text-lg font-bold text-foreground">
                         {sessionStats.duration || '-'}
                       </span>
-                      <span className="text-[11px] text-muted-foreground">会话时长</span>
+                      <span className="text-[11px] text-muted-foreground">{lang === 'zh' ? '会话时长' : 'Duration'}</span>
                     </div>
                   </div>
                 </div>

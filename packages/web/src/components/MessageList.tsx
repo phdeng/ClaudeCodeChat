@@ -17,10 +17,12 @@ import { useSessionStore } from '../stores/sessionStore'
 import { useThemeStore } from '../stores/themeStore'
 import { copyShareLink } from '../utils/shareLink'
 import { cn } from '@/lib/utils'
+import { ToolContentRenderer } from '@/components/ToolRenderers'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Card, CardContent } from '@/components/ui/card'
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
+import SaveToKnowledgeDialog from '@/components/SaveToKnowledgeDialog'
 
 /**
  * 图片灯箱预览组件
@@ -550,8 +552,10 @@ const TOOL_INFO: Record<string, { label: string; icon: typeof Terminal }> = {
   Read: { label: '读取文件', icon: FileText },
   Edit: { label: '编辑文件', icon: FileEdit },
   Write: { label: '写入文件', icon: FilePlus },
+  MultiEdit: { label: '批量编辑', icon: FileEdit },
   Grep: { label: '搜索内容', icon: Search },
   Glob: { label: '查找文件', icon: FolderSearch },
+  LS: { label: '列出目录', icon: FolderOpen },
   Agent: { label: '子代理', icon: Bot },
   TodoRead: { label: '读取待办', icon: BookOpen },
   TodoWrite: { label: '写入待办', icon: Pencil },
@@ -664,20 +668,7 @@ function ToolUseBlock({ toolUse, toolResult, isStreaming }: {
   isStreaming?: boolean
 }) {
   const [expanded, setExpanded] = useState(false)
-  const [outputCopied, setOutputCopied] = useState(false)
   const { label, Icon } = getToolInfo(toolUse.name)
-  const isBash = toolUse.name === 'Bash'
-
-  // 解析 Bash 命令
-  const bashCommand = useMemo(() => {
-    if (!isBash) return ''
-    try {
-      const input = JSON.parse(toolUse.input)
-      return input.command || ''
-    } catch {
-      return ''
-    }
-  }, [isBash, toolUse.input])
 
   // 解析工具输入参数，提取关键信息作为摘要
   const inputSummary = useMemo(() => {
@@ -686,8 +677,11 @@ function ToolUseBlock({ toolUse, toolResult, isStreaming }: {
       if (toolUse.name === 'Bash' && input.command) {
         return input.command.length > 80 ? input.command.substring(0, 80) + '...' : input.command
       }
-      if ((toolUse.name === 'Read' || toolUse.name === 'Write' || toolUse.name === 'Edit') && input.file_path) {
+      if ((toolUse.name === 'Read' || toolUse.name === 'Write' || toolUse.name === 'Edit' || toolUse.name === 'MultiEdit') && input.file_path) {
         return input.file_path
+      }
+      if (toolUse.name === 'LS' && input.path) {
+        return input.path
       }
       if (toolUse.name === 'Grep' && input.pattern) {
         return `/${input.pattern}/` + (input.path ? ` in ${input.path}` : '')
@@ -705,17 +699,6 @@ function ToolUseBlock({ toolUse, toolResult, isStreaming }: {
 
   // 判断工具是否还在执行中（有 tool-use 但还没有对应的 tool-result 且流式中）
   const isExecuting = !toolResult && isStreaming
-
-  /** 复制 Bash 输出到剪贴板 */
-  const handleCopyOutput = useCallback(() => {
-    if (toolResult?.content) {
-      navigator.clipboard.writeText(toolResult.content).then(() => {
-        setOutputCopied(true)
-        toast.success('已复制输出')
-        setTimeout(() => setOutputCopied(false), 2000)
-      })
-    }
-  }, [toolResult?.content])
 
   return (
     <div
@@ -761,113 +744,14 @@ function ToolUseBlock({ toolUse, toolResult, isStreaming }: {
         )}
       </button>
 
-      {/* 展开后的详细内容 */}
+      {/* 展开后的详细内容 — 使用 ToolContentRenderer 富渲染 */}
       {expanded && (
-        <div className="px-3 pb-2 space-y-1.5">
-          {/* Bash 工具：终端风格渲染 */}
-          {isBash ? (
-            <>
-              {/* 命令行显示 */}
-              {bashCommand && (
-                <div className={cn(
-                  "rounded overflow-hidden border border-neutral-700/50"
-                )}>
-                  <div className="flex items-center justify-between px-2 py-1 bg-neutral-800/80 border-b border-neutral-700/50">
-                    <div className="flex items-center gap-1.5">
-                      <div className="flex gap-1">
-                        <span className="w-2 h-2 rounded-full bg-red-500/60" />
-                        <span className="w-2 h-2 rounded-full bg-yellow-500/60" />
-                        <span className="w-2 h-2 rounded-full bg-green-500/60" />
-                      </div>
-                      <span className="text-[10px] text-neutral-400 ml-1.5 font-mono">terminal</span>
-                    </div>
-                  </div>
-                  <pre className={cn(
-                    "text-[11px] leading-[1.5] px-3 py-2",
-                    "bg-neutral-900/95 text-green-400",
-                    "overflow-x-auto font-mono whitespace-pre-wrap break-all"
-                  )}>
-                    <span className="text-cyan-400/80 select-none">$ </span>{bashCommand}
-                  </pre>
-                </div>
-              )}
-              {/* 命令输出（终端风格） */}
-              {toolResult && toolResult.content && (
-                <div className={cn(
-                  "rounded overflow-hidden border border-neutral-700/50"
-                )}>
-                  <div className="flex items-center justify-between px-2 py-1 bg-neutral-800/80 border-b border-neutral-700/50">
-                    <span className="text-[10px] text-neutral-400 font-mono">output</span>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleCopyOutput() }}
-                      className={cn(
-                        "flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px]",
-                        "text-neutral-400 hover:text-neutral-200 hover:bg-neutral-700/50",
-                        "transition-colors duration-150"
-                      )}
-                      title="复制输出"
-                    >
-                      {outputCopied ? (
-                        <>
-                          <Check size={10} className="text-green-400/80" />
-                          <span className="text-green-400/80">已复制</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy size={10} />
-                          <span>复制输出</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                  <pre className={cn(
-                    "text-[11px] leading-[1.5] px-3 py-2",
-                    "bg-neutral-900/95 text-green-300/90",
-                    "overflow-x-auto max-h-[400px] overflow-y-auto",
-                    "font-mono whitespace-pre-wrap break-all"
-                  )}>
-                    {toolResult.content}
-                  </pre>
-                </div>
-              )}
-            </>
-          ) : (
-            <>
-              {/* 非 Bash 工具：原有的输入参数和结果展示 */}
-              {toolUse.input && (
-                <div>
-                  <div className="text-[10px] text-muted-foreground/50 mb-0.5">输入参数</div>
-                  <pre className={cn(
-                    "text-[11px] leading-[1.5] p-2 rounded",
-                    "bg-background/50 text-muted-foreground/80",
-                    "overflow-x-auto max-h-[200px] overflow-y-auto",
-                    "font-mono whitespace-pre-wrap break-all"
-                  )}>
-                    {(() => {
-                      try {
-                        return JSON.stringify(JSON.parse(toolUse.input), null, 2)
-                      } catch {
-                        return toolUse.input
-                      }
-                    })()}
-                  </pre>
-                </div>
-              )}
-              {toolResult && toolResult.content && (
-                <div>
-                  <div className="text-[10px] text-muted-foreground/50 mb-0.5">执行结果</div>
-                  <pre className={cn(
-                    "text-[11px] leading-[1.5] p-2 rounded",
-                    "bg-background/50 text-muted-foreground/80",
-                    "overflow-x-auto max-h-[200px] overflow-y-auto",
-                    "font-mono whitespace-pre-wrap break-all"
-                  )}>
-                    {toolResult.content}
-                  </pre>
-                </div>
-              )}
-            </>
-          )}
+        <div className="px-3 pb-2">
+          <ToolContentRenderer
+            toolName={toolUse.name}
+            input={toolUse.input}
+            result={toolResult?.content}
+          />
         </div>
       )}
     </div>
@@ -1620,6 +1504,7 @@ function MessageActions({
   onQuote,
   bookmarked,
   onToggleBookmark,
+  onSaveToKnowledge,
   onPin,
   isPinned,
   onSpeak,
@@ -1637,6 +1522,7 @@ function MessageActions({
   onQuote?: () => void
   bookmarked?: boolean
   onToggleBookmark?: () => void
+  onSaveToKnowledge?: () => void
   onPin?: () => void
   isPinned?: boolean
   onSpeak?: () => void
@@ -1853,6 +1739,23 @@ function MessageActions({
               </Button>
             </TooltipTrigger>
             <TooltipContent side="top">{bookmarked ? '取消收藏' : '收藏'}</TooltipContent>
+          </Tooltip>
+        )}
+
+        {/* 保存到知识库按钮 */}
+        {onSaveToKnowledge && message.role === 'assistant' && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={onSaveToKnowledge}
+                className="text-foreground h-6 w-6"
+              >
+                <BookOpen size={12} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top">保存到知识库</TooltipContent>
           </Tooltip>
         )}
 
@@ -2656,6 +2559,7 @@ interface ContextMenuProps {
   onQuote?: () => void
   onBookmark?: () => void
   isBookmarked?: boolean
+  onSaveToKnowledge?: () => void
   onPin?: () => void
   isPinned?: boolean
   onSelectMode?: () => void
@@ -2666,7 +2570,7 @@ interface ContextMenuProps {
 }
 
 /** 右键上下文菜单组件 */
-function ContextMenu({ x, y, message, onClose, onCopy, onEdit, onRegenerate, onFork, onCopyLink, onQuote, onBookmark, isBookmarked, onPin, isPinned, onSelectMode, onSpeak, isSpeaking, onTranslate, isTranslating }: ContextMenuProps) {
+function ContextMenu({ x, y, message, onClose, onCopy, onEdit, onRegenerate, onFork, onCopyLink, onQuote, onBookmark, isBookmarked, onSaveToKnowledge, onPin, isPinned, onSelectMode, onSpeak, isSpeaking, onTranslate, isTranslating }: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null)
 
   // 调整位置避免超出视口
@@ -2709,6 +2613,7 @@ function ContextMenu({ x, y, message, onClose, onCopy, onEdit, onRegenerate, onF
     onFork ? { label: '从此处分叉', icon: GitBranch, onClick: onFork } : null,
     onCopyLink ? { label: '复制消息链接', icon: Link2, onClick: onCopyLink } : null,
     onBookmark ? { label: isBookmarked ? '取消收藏' : '收藏消息', icon: Bookmark, onClick: onBookmark } : null,
+    message.role === 'assistant' && onSaveToKnowledge ? { label: '保存到知识库', icon: BookOpen, onClick: onSaveToKnowledge } : null,
     onPin ? { label: isPinned ? '取消固定' : '固定消息', icon: isPinned ? PinOff : Pin, onClick: onPin } : null,
     onSpeak ? { label: isSpeaking ? '停止朗读' : '朗读消息', icon: isSpeaking ? Square : Volume2, onClick: onSpeak } : null,
     onTranslate ? { label: isTranslating ? '翻译中...' : '翻译消息', icon: Languages, onClick: onTranslate } : null,
@@ -2862,6 +2767,9 @@ export default function MessageList({ messages, highlightedMessageId, activeProg
   // 翻译状态管理
   const [translatedMessages, setTranslatedMessages] = useState<Map<string, { text: string; lang: string }>>(new Map())
   const [translatingMsgId, setTranslatingMsgId] = useState<string | null>(null)
+
+  // 保存到知识库对话框状态
+  const [knowledgeDialogMsg, setKnowledgeDialogMsg] = useState<Message | null>(null)
 
   /** "在新对话中继续" — 创建新会话并引入消息作为上下文 */
   const handleContinueInNewChat = useCallback((message: Message) => {
@@ -3953,6 +3861,7 @@ export default function MessageList({ messages, highlightedMessageId, activeProg
                           useSessionStore.getState().toggleMessageBookmark(sid, msg.id)
                         }
                       }}
+                      onSaveToKnowledge={() => setKnowledgeDialogMsg(msg)}
                       onPin={() => handleTogglePinMessage(msg.id)}
                       isPinned={msg.pinned}
                       onSpeak={() => handleSpeak(msg.id, msg.content)}
@@ -4214,6 +4123,10 @@ export default function MessageList({ messages, highlightedMessageId, activeProg
             if (sid) useSessionStore.getState().toggleMessageBookmark(sid, contextMenu.message.id)
           }}
           isBookmarked={contextMenu.message.bookmarked}
+          onSaveToKnowledge={() => {
+            setKnowledgeDialogMsg(contextMenu.message)
+            setContextMenu(null)
+          }}
           onPin={() => {
             handleTogglePinMessage(contextMenu.message.id)
             toast.success(contextMenu.message.pinned ? '已取消固定' : '已固定到顶部')
@@ -4274,6 +4187,21 @@ export default function MessageList({ messages, highlightedMessageId, activeProg
           onClose={() => setLightbox(null)}
         />
       )}
+
+      {/* 保存到知识库对话框 */}
+      {knowledgeDialogMsg && (() => {
+        const currentSession = allSessions.find(s => s.id === activeSessionId)
+        return (
+          <SaveToKnowledgeDialog
+            open={true}
+            onClose={() => setKnowledgeDialogMsg(null)}
+            content={knowledgeDialogMsg.content}
+            sessionId={activeSessionId || ''}
+            sessionTitle={currentSession?.title || ''}
+            messageTimestamp={knowledgeDialogMsg.timestamp}
+          />
+        )
+      })()}
     </div>
   )
 }

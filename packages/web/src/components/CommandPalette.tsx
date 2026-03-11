@@ -249,6 +249,14 @@ export const SLASH_COMMANDS: CommandPaletteItem[] = [
     type: 'command',
     value: '/zen',
   },
+  {
+    id: 'cmd-workflow',
+    label: '/workflow',
+    description: '提示词工作流编排器',
+    icon: 'rocket',
+    type: 'command',
+    value: '/workflow',
+  },
 ]
 
 // ==================== 图标映射组件 ====================

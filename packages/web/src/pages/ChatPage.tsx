@@ -21,6 +21,9 @@ import SessionTemplateDialog from '../components/SessionTemplateDialog'
 import type { SessionTemplate } from '../components/SessionTemplateDialog'
 import type { AgentState } from '../components/AgentTeamsPanel'
 import CostPanel from '../components/CostPanel'
+import WorkflowPanel from '../components/WorkflowPanel'
+import WorkflowExecutionBar from '../components/WorkflowExecutionBar'
+import { useWorkflowStore, type Workflow } from '../stores/workflowStore'
 import { exportChatAsImage } from '../utils/exportImage'
 import ProjectDashboard from '../components/ProjectDashboard'
 import { WifiOff, Loader2, Search } from 'lucide-react'
@@ -29,6 +32,7 @@ import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { useSessionStore, type Message } from '../stores/sessionStore'
 import { useSettingsStore } from '../stores/settingsStore'
+import { useTranslation } from '../i18n'
 import { playNotificationSound } from '../utils/notificationSound'
 
 // 异步调用后端 API 生成智能会话标题
@@ -90,6 +94,7 @@ export default function ChatPage() {
   const [highlightedMsgId, setHighlightedMsgId] = useState<string | null>(null)
   const [showSnippets, setShowSnippets] = useState(false)
   const [selectMode, setSelectMode] = useState(false)
+  const [showWorkflow, setShowWorkflow] = useState(false)
   // 引用回复状态
   const [quotedMessage, setQuotedMessage] = useState<{ role: string; content: string } | null>(null)
   // Diff 对比视图状态
@@ -100,6 +105,7 @@ export default function ChatPage() {
   // 用于记录重新生成前的旧 assistant 回复内容
   const regenerateOldContentRef = useRef<string | null>(null)
 
+  const { t } = useTranslation()
   const session = sessions.find((s) => s.id === (sessionId || activeSessionId))
 
   currentSessionIdRef.current = sessionId || activeSessionId || null
@@ -215,6 +221,7 @@ export default function ChatPage() {
       'shortcut:timeline': () => setShowTimeline(true),
       'shortcut:categories': () => setShowCategories(true),
       'shortcut:templates': () => setShowTemplates(true),
+      'shortcut:workflow': () => setShowWorkflow(true),
     }
 
     // 功能发现卡片点击事件
@@ -506,6 +513,32 @@ export default function ChatPage() {
         streamingMsgIdsRef.current.delete(sid)
         chunkOffsetsRef.current.delete(sid)
         store.removeStreamingSession(sid)
+
+        // ===== 工作流自动推进 =====
+        {
+          const wfStore = useWorkflowStore.getState()
+          const exec = wfStore.execution
+          if (exec && exec.status === 'running' && sid === currentSessionIdRef.current) {
+            // 获取刚完成的 AI 回复内容
+            const latestSession = store.sessions.find(s => s.id === sid)
+            const latestMsg = latestSession?.messages.find(m => m.id === streamingMsgId)
+            const aiOutput = latestMsg?.content || ''
+
+            // 尝试推进到下一步
+            const nextStep = wfStore.advanceStep(aiOutput)
+            if (nextStep) {
+              // 延迟 500ms 后自动发送下一步 prompt
+              setTimeout(() => {
+                handleSend(nextStep.prompt)
+              }, 500)
+            } else {
+              // 所有步骤已完成
+              wfStore.completeExecution()
+              toast.success(t('workflow.allCompleted'))
+            }
+          }
+        }
+
         break
       }
       case 'error': {
@@ -530,6 +563,15 @@ export default function ChatPage() {
         streamingMsgIdsRef.current.delete(sid)
         chunkOffsetsRef.current.delete(sid)
         store.removeStreamingSession(sid)
+
+        // 工作流执行中遇到错误，标记错误并停止
+        {
+          const wfStore = useWorkflowStore.getState()
+          if (wfStore.execution && wfStore.execution.status === 'running') {
+            wfStore.setExecutionError()
+          }
+        }
+
         break
       }
     }
@@ -693,6 +735,12 @@ export default function ChatPage() {
         body: JSON.stringify({ sessionId: sid }),
       }).catch(() => {})
     }
+    // 如果有工作流正在执行，同时停止
+    const wfExec = useWorkflowStore.getState().execution
+    if (wfExec && wfExec.status === 'running') {
+      useWorkflowStore.getState().stopExecution()
+      toast(t('workflow.stopConfirm'))
+    }
   }
 
   const handleSuggestionClick = (text: string) => {
@@ -812,6 +860,18 @@ export default function ChatPage() {
     toast.success(`已从模板「${template.name}」创建新会话`)
   }, [createSession, setSessionSystemPrompt, updateSessionTitle, addMessage, navigate])
 
+  /** 执行工作流：启动执行状态并发送第 1 步 prompt */
+  const handleWorkflowExecute = useCallback((workflow: Workflow) => {
+    const wfStore = useWorkflowStore.getState()
+    wfStore.startExecution(workflow)
+
+    // 发送第 1 步的 prompt（第 1 步不替换 {{prev}}，直接发送原文）
+    const firstStep = workflow.steps[0]
+    if (firstStep) {
+      handleSend(firstStep.prompt)
+    }
+  }, [handleSend])
+
   // 处理斜杠命令
   const handleCommand = useCallback((command: string) => {
     switch (command) {
@@ -897,6 +957,10 @@ export default function ChatPage() {
       }
       case '/templates': {
         setShowTemplates(true)
+        break
+      }
+      case '/workflow': {
+        setShowWorkflow(true)
         break
       }
       case '/clear-context': {
@@ -1033,6 +1097,9 @@ export default function ChatPage() {
         />
       )}
 
+      {/* 工作流执行进度条 */}
+      <WorkflowExecutionBar />
+
       {/* 项目仪表盘：当没有选中具体会话但有项目筛选路径时显示 */}
       {showProjectDashboard ? (
         <ProjectDashboard workingDirectory={projectFilter!} />
@@ -1163,6 +1230,13 @@ export default function ChatPage() {
         open={showTemplates}
         onClose={() => setShowTemplates(false)}
         onSelect={handleTemplateSelect}
+      />
+
+      {/* 工作流管理面板 */}
+      <WorkflowPanel
+        open={showWorkflow}
+        onClose={() => setShowWorkflow(false)}
+        onExecute={handleWorkflowExecute}
       />
 
       {/* Diff 对比视图 */}

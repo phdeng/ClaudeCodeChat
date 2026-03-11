@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ArrowLeft, Server, Webhook, Puzzle, Users, ChevronRight, SlidersHorizontal, Globe, FolderOpen, FileText } from 'lucide-react'
+import { ArrowLeft, Server, Webhook, Puzzle, Users, ChevronRight, SlidersHorizontal, Globe, FolderOpen, FileText, BarChart3 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import McpServersPanel from '../components/settings/McpServersPanel'
 import HooksPanel from '../components/settings/HooksPanel'
@@ -7,43 +7,48 @@ import GeneralSettingsPanel from '../components/settings/GeneralSettingsPanel'
 import SubagentPanel from '../components/settings/SubagentPanel'
 import SkillsPanel from '../components/settings/SkillsPanel'
 import RulesPanel from '../components/settings/RulesPanel'
+import UsageStatsPanel from '../components/settings/UsageStatsPanel'
 import { useSessionStore } from '../stores/sessionStore'
+import { useTranslation } from '../i18n'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 
 type Scope = 'global' | 'project'
 
-const tabs = [
-  { id: 'general', label: '通用设置', icon: SlidersHorizontal, scopes: ['global', 'project'] as Scope[] },
-  { id: 'mcp', label: 'MCP 服务器', icon: Server, scopes: ['global', 'project'] as Scope[] },
-  { id: 'hooks', label: 'Hooks 钩子', icon: Webhook, scopes: ['global', 'project'] as Scope[] },
-  { id: 'skills', label: 'Skills 技能', icon: Puzzle, scopes: ['project'] as Scope[] },
-  { id: 'subagent', label: 'Subagent 子代理', icon: Users, scopes: ['global', 'project'] as Scope[] },
-  { id: 'rules', label: 'Rules 规则', icon: FileText, scopes: ['project'] as Scope[] },
+const TAB_DEFS = [
+  { id: 'general', labelKey: 'settings.general' as const, icon: SlidersHorizontal, scopes: ['global', 'project'] as Scope[] },
+  { id: 'mcp', labelKey: 'settings.mcp' as const, icon: Server, scopes: ['global', 'project'] as Scope[] },
+  { id: 'hooks', labelKey: 'settings.hooks' as const, icon: Webhook, scopes: ['global', 'project'] as Scope[] },
+  { id: 'skills', labelKey: 'settings.skills' as const, icon: Puzzle, scopes: ['project'] as Scope[] },
+  { id: 'subagent', labelKey: 'settings.subagent' as const, icon: Users, scopes: ['global', 'project'] as Scope[] },
+  { id: 'rules', labelKey: 'settings.rules' as const, icon: FileText, scopes: ['project'] as Scope[] },
+  { id: 'usage', labelKey: 'settings.usage' as const, icon: BarChart3, scopes: ['global', 'project'] as Scope[] },
 ] as const
 
-type TabId = typeof tabs[number]['id']
+type TabId = typeof TAB_DEFS[number]['id']
 
 export default function SettingsPage() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState<TabId>('general')
   const [scope, setScope] = useState<Scope>('global')
   const { sessions, activeSessionId } = useSessionStore()
   const activeSession = sessions.find((s) => s.id === activeSessionId)
   const workingDirectory = activeSession?.workingDirectory
 
-  const activeTabLabel = tabs.find(t => t.id === activeTab)?.label || ''
+  const activeTabDef = TAB_DEFS.find(tab => tab.id === activeTab)
+  const activeTabLabel = activeTabDef ? t(activeTabDef.labelKey) : ''
 
   // 当前 scope 下可用的 tabs
-  const visibleTabs = tabs.filter(t => t.scopes.includes(scope))
+  const visibleTabs = TAB_DEFS.filter(tab => tab.scopes.includes(scope))
 
   // 切换 scope 时，如果当前 tab 不可用，自动切换到第一个可用 tab
   const handleScopeChange = (newScope: Scope) => {
     setScope(newScope)
-    const currentTabDef = tabs.find(t => t.id === activeTab)
+    const currentTabDef = TAB_DEFS.find(tab => tab.id === activeTab)
     if (currentTabDef && !currentTabDef.scopes.includes(newScope)) {
-      const firstAvailable = tabs.find(t => t.scopes.includes(newScope))
+      const firstAvailable = TAB_DEFS.find(tab => tab.scopes.includes(newScope))
       if (firstAvailable) {
         setActiveTab(firstAvailable.id)
       }
@@ -67,7 +72,7 @@ export default function SettingsPage() {
               className="text-foreground cursor-pointer transition-colors"
               onClick={() => navigate(-1)}
             >
-              设置
+              {t('settings.title')}
             </span>
             <ChevronRight size={14} className="text-muted-foreground opacity-50" />
             <span className="text-foreground font-medium">
@@ -94,7 +99,7 @@ export default function SettingsPage() {
             )}
           >
             <Globe size={14} />
-            全局设置
+            {t('settings.global')}
           </Button>
           <Button
             variant="ghost"
@@ -108,7 +113,7 @@ export default function SettingsPage() {
             )}
           >
             <FolderOpen size={14} />
-            项目设置
+            {t('settings.project')}
           </Button>
           {scope === 'project' && workingDirectory && (
             <span className="text-xs text-muted-foreground ml-2 truncate max-w-[300px]" title={workingDirectory}>
@@ -117,7 +122,7 @@ export default function SettingsPage() {
           )}
           {scope === 'project' && !workingDirectory && (
             <span className="text-xs text-amber-400/80 ml-2">
-              未选择项目文件夹
+              {t('chat.selectProjectFirst')}
             </span>
           )}
         </div>
@@ -138,7 +143,7 @@ export default function SettingsPage() {
               )}
             >
               <tab.icon size={15} />
-              {tab.label}
+              {t(tab.labelKey)}
             </Button>
           ))}
         </div>
@@ -152,6 +157,7 @@ export default function SettingsPage() {
           {activeTab === 'skills' && <SkillsPanel workingDirectory={workingDirectory} />}
           {activeTab === 'subagent' && <SubagentPanel scope={scope} workingDirectory={workingDirectory} />}
           {activeTab === 'rules' && <RulesPanel workingDirectory={workingDirectory} />}
+          {activeTab === 'usage' && <UsageStatsPanel />}
         </div>
       </div>
     </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { SlidersHorizontal, RefreshCw, Plus, X, Info, Palette, Code2, AlertTriangle, FolderOpen } from 'lucide-react'
+import { SlidersHorizontal, RefreshCw, Plus, X, Info, Palette, Code2, AlertTriangle, FolderOpen, Languages } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardTitle, CardDescription } from '@/components/ui/card'
@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import EnvVarsPanel from './EnvVarsPanel'
 import { useThemeStore, ACCENT_COLOR_OPTIONS, CODE_THEME_OPTIONS } from '@/stores/themeStore'
 import type { AccentColor, CodeTheme } from '@/stores/themeStore'
+import { useTranslation, langNames, type LangCode } from '@/i18n'
 import { cn } from '@/lib/utils'
 
 interface Settings {
@@ -38,6 +39,7 @@ interface GeneralSettingsPanelProps {
 }
 
 export default function GeneralSettingsPanel({ scope, workingDirectory }: GeneralSettingsPanelProps) {
+  const { t, lang, setLang } = useTranslation()
   const [settings, setSettings] = useState<Settings>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -163,7 +165,7 @@ export default function GeneralSettingsPanel({ scope, workingDirectory }: Genera
   }
 
   if (loading) {
-    return <div className="text-muted-foreground text-sm p-4">加载中...</div>
+    return <div className="text-muted-foreground text-sm p-4">{t('common.loading')}</div>
   }
 
   const permissions = settings.permissions || {}
@@ -237,17 +239,43 @@ export default function GeneralSettingsPanel({ scope, workingDirectory }: Genera
         </CardContent>
       </Card>
 
+      {/* 语言切换 */}
+      <Card className="py-0 rounded-2xl">
+        <CardContent className="p-5 space-y-3">
+          <div className="flex items-center gap-2">
+            <Languages size={16} className="text-primary" />
+            <CardTitle className="text-sm">{t('settings.language')}</CardTitle>
+          </div>
+          <div className="flex items-center gap-2">
+            {(Object.entries(langNames) as [LangCode, string][]).map(([code, name]) => (
+              <button
+                key={code}
+                onClick={() => setLang(code)}
+                className={cn(
+                  'px-4 py-2 rounded-lg text-sm transition-all',
+                  lang === code
+                    ? 'bg-primary/15 text-primary ring-1 ring-primary/30 font-medium'
+                    : 'bg-accent/50 text-foreground hover:bg-accent'
+                )}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* 外观设置：主题色 + 代码高亮主题 */}
       <Card className="py-0 rounded-2xl">
         <CardContent className="p-5 space-y-4">
           <div className="flex items-center gap-2">
             <Palette size={16} className="text-primary" />
-            <CardTitle className="text-sm">外观设置</CardTitle>
+            <CardTitle className="text-sm">{t('settings.accentColor')}</CardTitle>
           </div>
 
           {/* 主题色选择 */}
           <div className="space-y-2">
-            <label className="text-xs text-muted-foreground">主题色</label>
+            <label className="text-xs text-muted-foreground">{t('settings.accentColor')}</label>
             <div className="flex items-center gap-3 flex-wrap">
               {ACCENT_COLOR_OPTIONS.map((opt) => (
                 <button
@@ -281,7 +309,7 @@ export default function GeneralSettingsPanel({ scope, workingDirectory }: Genera
           <div className="space-y-2">
             <div className="flex items-center gap-1.5">
               <Code2 size={13} className="text-muted-foreground" />
-              <label className="text-xs text-muted-foreground">代码高亮主题</label>
+              <label className="text-xs text-muted-foreground">{t('settings.codeTheme')}</label>
             </div>
             <select
               value={codeTheme}
