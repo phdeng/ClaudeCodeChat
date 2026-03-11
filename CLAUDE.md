@@ -111,3 +111,4 @@ packages/
 - 平台：Windows 11
 - Node.js >= 20, pnpm
 - Claude Code 实验性功能已启用：Agent Teams (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`)
+- Git 提交作者：`phdeng`
