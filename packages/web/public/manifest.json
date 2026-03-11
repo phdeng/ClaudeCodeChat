@@ -1,0 +1,10 @@
+{
+  "name": "Claude Code Chat",
+  "short_name": "CC Chat",
+  "description": "Claude Code 对话管理",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#f97316",
+  "icons": []
+}

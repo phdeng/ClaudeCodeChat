@@ -1,0 +1,23 @@
+{
+  "name": "claude-code-chat",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Web UI for managing Claude Code CLI",
+  "scripts": {
+    "dev": "pnpm -r --parallel run dev",
+    "build": "pnpm -r run build",
+    "dev:web": "pnpm --filter @claude-code-chat/web dev",
+    "dev:server": "pnpm --filter @claude-code-chat/server dev",
+    "build:web": "pnpm --filter @claude-code-chat/web build",
+    "build:server": "pnpm --filter @claude-code-chat/server build",
+    "start": "node packages/server/dist/index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  }
+}
