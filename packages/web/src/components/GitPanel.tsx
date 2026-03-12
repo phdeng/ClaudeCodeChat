@@ -246,7 +246,8 @@ export default function GitPanel({ workingDirectory, open, onClose, onSendMessag
       setExpandedFile(null)
       setDiffMap({})
     }
-  }, [open, workingDirectory, fetchStatus])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchStatus 包含 t()，每次渲染都会变化，只需在 open/workingDirectory 变化时触发
+  }, [open, workingDirectory])
 
   // 获取文件 diff
   const fetchDiff = useCallback(

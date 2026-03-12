@@ -39,6 +39,7 @@ import {
 import {
   Tooltip,
   TooltipContent,
+  TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
@@ -496,6 +497,7 @@ export default function ContextPanel({
         side="right"
         className="w-[420px] max-w-full sm:max-w-[420px] flex flex-col p-0 gap-0"
       >
+        <TooltipProvider delayDuration={200}>
         {/* 标题栏 */}
         <SheetHeader className="px-4 py-3 border-b border-border flex-shrink-0">
           <div className="flex items-center justify-between">
@@ -715,6 +717,7 @@ export default function ContextPanel({
             )}
           </div>
         </div>
+        </TooltipProvider>
       </SheetContent>
     </Sheet>
   )
