@@ -4,6 +4,16 @@
 
 ---
 
+## [1.14.0] — 2026-03-13
+
+### 新增
+- **旧会话归档提示**：超过 30 天未活动的会话在侧边栏显示淡化样式（opacity-50）+ 天数提示（如"45天前"），置顶会话不受影响
+- **TTS 朗读控制条**：朗读消息时底部显示控制条，支持暂停/继续/停止 + 语速调节（0.5x - 2.0x）
+  - 状态指示（朗读中/已暂停，带脉冲动画）
+  - 语速实时切换（自动重建 utterance 应用新语速）
+
+---
+
 ## [1.13.0] — 2026-03-13
 
 ### 新增
@@ -313,6 +323,7 @@
 
 ---
 
+[1.14.0]: https://github.com/phdeng/ClaudeCodeChat/compare/v1.13.0...v1.14.0
 [1.13.0]: https://github.com/phdeng/ClaudeCodeChat/compare/v1.12.0...v1.13.0
 [1.12.0]: https://github.com/phdeng/ClaudeCodeChat/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/phdeng/ClaudeCodeChat/compare/v1.10.0...v1.11.0

@@ -89,6 +89,7 @@ const en: Locale = {
     chatting: 'Chatting...',
     unreadMessages: '{count} unread messages',
     dragToSort: 'Drag to sort',
+    daysAgo: 'd ago',
     sessionActions: 'Session actions',
     generateSummary: 'Generate Summary',
     noMessagesForSummary: 'No messages to summarize',

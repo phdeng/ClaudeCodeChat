@@ -24,6 +24,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Card, CardContent } from '@/components/ui/card'
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip'
 import SaveToKnowledgeDialog from '@/components/SaveToKnowledgeDialog'
+import TtsControlBar from '@/components/TtsControlBar'
 
 /**
  * 图片灯箱预览组件
@@ -2934,24 +2935,37 @@ export default function MessageList({ messages, highlightedMessageId, searchQuer
 
   // TTS 朗读状态：当前正在朗读的消息 ID
   const [speakingMsgId, setSpeakingMsgId] = useState<string | null>(null)
+  // TTS 暂停状态
+  const [isTtsPaused, setIsTtsPaused] = useState(false)
+  // TTS 语速（0.5 ~ 2.0）
+  const [ttsRate, setTtsRate] = useState(1)
   // 图片预览灯箱状态
   const [lightbox, setLightbox] = useState<{ src: string; alt: string } | null>(null)
   // 用 ref 持有当前 utterance 实例，便于在回调中取消
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null)
+  // 用 ref 持有最新的语速值，便于在回调中读取
+  const ttsRateRef = useRef(ttsRate)
+  ttsRateRef.current = ttsRate
+
+  /** 重置 TTS 状态（停止朗读后调用） */
+  const resetTtsState = useCallback(() => {
+    utteranceRef.current = null
+    setSpeakingMsgId(null)
+    setIsTtsPaused(false)
+  }, [])
 
   /** 朗读/停止朗读消息 */
   const handleSpeak = useCallback((msgId: string, content: string) => {
     // 如果正在朗读同一条消息，停止朗读
     if (speakingMsgId === msgId) {
       window.speechSynthesis.cancel()
-      utteranceRef.current = null
-      setSpeakingMsgId(null)
+      resetTtsState()
       return
     }
 
     // 停止之前的朗读（如果有）
     window.speechSynthesis.cancel()
-    utteranceRef.current = null
+    resetTtsState()
 
     // 去除 Markdown 语法，获取纯文本
     const plainText = stripMarkdown(content)
@@ -2963,13 +2977,12 @@ export default function MessageList({ messages, highlightedMessageId, searchQuer
     // 创建朗读实例
     const utterance = new SpeechSynthesisUtterance(plainText)
     utterance.lang = detectLanguage(plainText)
-    utterance.rate = 1
+    utterance.rate = ttsRateRef.current
     utterance.pitch = 1
 
     // 朗读完成时重置状态
     utterance.onend = () => {
-      utteranceRef.current = null
-      setSpeakingMsgId(null)
+      resetTtsState()
     }
 
     // 朗读出错时重置状态
@@ -2978,14 +2991,74 @@ export default function MessageList({ messages, highlightedMessageId, searchQuer
       if (e.error !== 'canceled') {
         toast.error('朗读失败: ' + e.error)
       }
-      utteranceRef.current = null
-      setSpeakingMsgId(null)
+      resetTtsState()
     }
 
     utteranceRef.current = utterance
     setSpeakingMsgId(msgId)
+    setIsTtsPaused(false)
     window.speechSynthesis.speak(utterance)
-  }, [speakingMsgId])
+  }, [speakingMsgId, resetTtsState])
+
+  /** TTS 暂停 */
+  const handleTtsPause = useCallback(() => {
+    window.speechSynthesis.pause()
+    setIsTtsPaused(true)
+  }, [])
+
+  /** TTS 继续 */
+  const handleTtsResume = useCallback(() => {
+    window.speechSynthesis.resume()
+    setIsTtsPaused(false)
+  }, [])
+
+  /** TTS 停止 */
+  const handleTtsStop = useCallback(() => {
+    window.speechSynthesis.cancel()
+    resetTtsState()
+  }, [resetTtsState])
+
+  /** TTS 语速变更（实时生效：取消当前朗读并以新语速重新开始） */
+  const handleTtsRateChange = useCallback((newRate: number) => {
+    setTtsRate(newRate)
+    // 如果正在朗读，需要重新创建 utterance 以应用新语速
+    // （SpeechSynthesisUtterance 的 rate 在 speak 后不可变更）
+    if (utteranceRef.current && speakingMsgId) {
+      const wasPaused = isTtsPaused
+      window.speechSynthesis.cancel()
+
+      // 使用当前 utterance 的文本和语言重新创建
+      const oldUtterance = utteranceRef.current
+      const utterance = new SpeechSynthesisUtterance(oldUtterance.text)
+      utterance.lang = oldUtterance.lang
+      utterance.rate = newRate
+      utterance.pitch = 1
+
+      utterance.onend = () => {
+        resetTtsState()
+      }
+      utterance.onerror = (e) => {
+        if (e.error !== 'canceled') {
+          toast.error('朗读失败: ' + e.error)
+        }
+        resetTtsState()
+      }
+
+      utteranceRef.current = utterance
+      window.speechSynthesis.speak(utterance)
+
+      // 如果之前是暂停状态，重新开始后也暂停
+      if (wasPaused) {
+        // 需要短暂延迟，等 speak 生效后再 pause
+        setTimeout(() => {
+          window.speechSynthesis.pause()
+          setIsTtsPaused(true)
+        }, 50)
+      } else {
+        setIsTtsPaused(false)
+      }
+    }
+  }, [speakingMsgId, isTtsPaused, resetTtsState])
 
   // 组件卸载时停止朗读
   useEffect(() => {
@@ -4283,6 +4356,18 @@ export default function MessageList({ messages, highlightedMessageId, searchQuer
           />
         )
       })()}
+
+      {/* TTS 朗读控制条 */}
+      {speakingMsgId && (
+        <TtsControlBar
+          onPause={handleTtsPause}
+          onResume={handleTtsResume}
+          onStop={handleTtsStop}
+          isPaused={isTtsPaused}
+          rate={ttsRate}
+          onRateChange={handleTtsRateChange}
+        />
+      )}
     </div>
   )
 }

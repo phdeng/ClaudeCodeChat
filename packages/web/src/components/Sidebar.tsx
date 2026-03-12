@@ -93,6 +93,13 @@ function getTagColor(tag: string): string {
   return TAG_COLORS[Math.abs(hash) % TAG_COLORS.length]
 }
 
+/** 计算会话距今的天数（基于最后一条消息或创建时间） */
+function daysSinceLastActivity(session: { messages: { timestamp: number }[]; createdAt: number }): number {
+  const lastMsg = session.messages[session.messages.length - 1]
+  const lastTime = lastMsg ? lastMsg.timestamp : session.createdAt
+  return Math.floor((Date.now() - lastTime) / (1000 * 60 * 60 * 24))
+}
+
 // 预设常用标签
 const PRESET_TAGS = ['编程', '学习', '翻译', '工作', '想法']
 
@@ -576,6 +583,8 @@ export default function Sidebar({ onClose }: SidebarProps) {
               {group.items.map((session) => {
                 const isConfirming = confirmDeleteId === session.id
                 const matchSnippet = getMatchSnippet(session, searchQuery)
+                const inactiveDays = daysSinceLastActivity(session)
+                const isInactive = !session.pinned && inactiveDays > 30
 
                 return (
                   <div
@@ -586,7 +595,9 @@ export default function Sidebar({ onClose }: SidebarProps) {
                       "group relative",
                       // 拖拽目标指示线
                       dragOverSessionId === session.id && draggedSessionId !== null && draggedSessionId !== session.id &&
-                        "border-t-2 border-primary"
+                        "border-t-2 border-primary",
+                      // 超过 30 天未活动的会话淡化显示
+                      isInactive && "opacity-50"
                     )}
                     draggable
                     onDragStart={(e) => {
@@ -713,6 +724,12 @@ export default function Sidebar({ onClose }: SidebarProps) {
                                   title={t('sidebar.unreadMessages' as any, { count: session.unreadCount ?? 0 })}
                                 >
                                   {(session.unreadCount ?? 0) > 9 ? '9+' : session.unreadCount}
+                                </span>
+                              )}
+                              {/* 不活跃会话天数提示 */}
+                              {isInactive && (
+                                <span className="flex-shrink-0 text-[10px] text-muted-foreground/60 ml-1">
+                                  {inactiveDays}{t('sidebar.daysAgo' as any)}
                                 </span>
                               )}
                             </span>

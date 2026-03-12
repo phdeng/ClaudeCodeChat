@@ -87,6 +87,7 @@ const zh = {
     chatting: '正在对话中...',
     unreadMessages: '{count} 条未读消息',
     dragToSort: '拖拽排序',
+    daysAgo: '天前',
     sessionActions: '会话操作',
     generateSummary: '生成摘要',
     noMessagesForSummary: '会话没有消息，无法生成摘要',
