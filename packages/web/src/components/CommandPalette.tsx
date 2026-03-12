@@ -151,8 +151,8 @@ export const SLASH_COMMANDS: CommandPaletteItem[] = [
   {
     id: 'cmd-git',
     label: '/git',
-    description: '显示当前项目的 Git 状态',
-    icon: 'git',
+    description: 'Git 操作面板 — 查看状态/diff/快捷操作',
+    icon: 'git-branch',
     type: 'command',
     value: '/git',
   },
@@ -291,6 +291,7 @@ function ItemIcon({ icon, type }: { icon?: string; type: CommandPaletteItem['typ
   if (icon === 'columns') return <Columns3 size={size} className={cls} />
   if (icon === 'clock') return <Clock size={size} className={cls} />
   if (icon === 'git') return <GitBranch size={size} className={cn(cls, 'text-orange-400/80')} />
+  if (icon === 'git-branch') return <GitBranch size={size} className={cn(cls, 'text-orange-400/80')} />
   if (icon === 'folder-tree') return <FolderTree size={size} className={cls} />
   if (icon === 'rotate') return <RotateCcw size={size} className={cn(cls, 'text-destructive/70')} />
   if (icon === 'code') return <Code2 size={size} className={cls} />

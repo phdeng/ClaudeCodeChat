@@ -1,5 +1,6 @@
 import express from 'express'
 import { createServer } from 'http'
+import { spawn } from 'child_process'
 import { ClaudeCodeManager, type TokenUsage } from './services/claudeCode.js'
 import configRouter from './routes/config.js'
 import filesystemRouter from './routes/filesystem.js'
@@ -116,8 +117,15 @@ function startStream(sessionId: string, data: any): StreamBuffer {
     broadcastToSession(sessionId, 'error', { sessionId, message: error })
   })
 
-  // 异步发送消息
-  manager.send(data.message, data.images).catch((err) => {
+  // 异步发送消息（传递新增的可选 CLI 参数）
+  manager.send(data.message, data.images, {
+    effort: data.effort,
+    maxBudgetUsd: data.maxBudgetUsd,
+    fallbackModel: data.fallbackModel,
+    allowedTools: data.allowedTools,
+    disallowedTools: data.disallowedTools,
+    fromPr: data.fromPr,
+  }).catch((err) => {
     buffer.status = 'error'
     buffer.errorMsg = err.message
     buffer.lastActivity = Date.now()
@@ -142,7 +150,7 @@ app.get('/api/health', (_req, res) => {
 })
 
 app.get('/api/version', (_req, res) => {
-  res.json({ version: '1.3.0' })
+  res.json({ version: '1.4.0' })
 })
 
 app.get('/api/claude-code/status', async (_req, res) => {
@@ -212,7 +220,10 @@ app.get('/api/chat/stream', (req, res) => {
 // ===== 发送消息端点 =====
 
 app.post('/api/chat/send', (req, res) => {
-  const { clientId, sessionId, message, images, model, workingDirectory, systemPrompt, permissionMode, cliSessionId } = req.body
+  const {
+    clientId, sessionId, message, images, model, workingDirectory, systemPrompt, permissionMode, cliSessionId,
+    effort, maxBudgetUsd, fallbackModel, allowedTools, disallowedTools, fromPr
+  } = req.body
 
   if (!sessionId || !message) {
     res.status(400).json({ error: 'sessionId and message required' })
@@ -227,8 +238,11 @@ app.post('/api/chat/send', (req, res) => {
     }
   }
 
-  // 启动 CLI 流
-  startStream(sessionId, { message, images, model, workingDirectory, systemPrompt, permissionMode, cliSessionId })
+  // 启动 CLI 流（传递所有参数，包括新增的可选参数）
+  startStream(sessionId, {
+    message, images, model, workingDirectory, systemPrompt, permissionMode, cliSessionId,
+    effort, maxBudgetUsd, fallbackModel, allowedTools, disallowedTools, fromPr
+  })
 
   res.json({ ok: true })
 })
@@ -289,6 +303,75 @@ app.post('/api/chat/resume', (req, res) => {
     usage: buffer.usage,
     errorMsg: buffer.errorMsg,
   })
+})
+
+// ===== 对话自动摘要端点 =====
+
+app.post('/api/chat/summarize', async (req, res) => {
+  const { messages, workingDirectory } = req.body
+  // messages: Array<{ role: string, content: string }>
+
+  if (!messages || messages.length < 4) {
+    res.json({ summary: '', keyTopics: [] })
+    return
+  }
+
+  // 取最近 10 条消息，避免 token 过多
+  const recentMessages = messages.slice(-10)
+  const prompt = `请用1-2句话总结以下对话的核心内容，并提取3-5个关键词。
+格式：
+摘要：<摘要内容>
+关键词：<关键词1>, <关键词2>, ...
+
+对话内容：
+${recentMessages.map((m: { role: string; content: string }) => `${m.role}: ${m.content.slice(0, 200)}`).join('\n')}
+`
+
+  try {
+    const env = { ...process.env }
+    delete env.CLAUDECODE
+
+    // 使用 spawn + stdin 传入消息，避免 Windows 引号转义问题
+    const child = spawn('claude', ['--print', '--model', 'claude-haiku-4-5-20251001'], {
+      cwd: workingDirectory || process.cwd(),
+      env,
+      timeout: 30000,
+    })
+
+    let output = ''
+    let errorOutput = ''
+    child.stdout.on('data', (data: Buffer) => { output += data.toString() })
+    child.stderr.on('data', (data: Buffer) => { errorOutput += data.toString() })
+
+    // 通过 stdin 写入 prompt，避免命令行引号问题
+    child.stdin.write(prompt)
+    child.stdin.end()
+
+    child.on('close', (code) => {
+      if (code !== 0 && !output.trim()) {
+        // 摘要生成失败不应阻塞用户，静默返回空
+        res.json({ summary: '', keyTopics: [] })
+        return
+      }
+
+      // 解析结果
+      const summaryMatch = output.match(/摘要[：:]\s*(.+?)(?:\n|$)/)
+      const keywordsMatch = output.match(/关键词[：:]\s*(.+?)(?:\n|$)/)
+
+      const summary = summaryMatch?.[1]?.trim() || output.trim().split('\n')[0]
+      const keyTopics = keywordsMatch?.[1]?.split(/[,，]/).map((s: string) => s.trim()).filter(Boolean) || []
+
+      res.json({ summary, keyTopics })
+    })
+
+    child.on('error', () => {
+      // 摘要生成失败不应阻塞用户，静默返回空
+      res.json({ summary: '', keyTopics: [] })
+    })
+  } catch (err: any) {
+    // 摘要生成失败不应阻塞用户，静默返回空
+    res.json({ summary: '', keyTopics: [] })
+  }
 })
 
 // ===== 延迟测量端点 =====

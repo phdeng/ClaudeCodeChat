@@ -26,6 +26,7 @@ import WorkflowExecutionBar from '../components/WorkflowExecutionBar'
 import { useWorkflowStore, type Workflow } from '../stores/workflowStore'
 import { exportChatAsImage } from '../utils/exportImage'
 import ProjectDashboard from '../components/ProjectDashboard'
+import GitPanel from '../components/GitPanel'
 import { WifiOff, Loader2, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 // Tooltip imports removed — toolbar consolidated into input area
@@ -102,6 +103,7 @@ export default function ChatPage() {
   const [showSnippets, setShowSnippets] = useState(false)
   const [selectMode, setSelectMode] = useState(false)
   const [showWorkflow, setShowWorkflow] = useState(false)
+  const [showGitPanel, setShowGitPanel] = useState(false)
   // 引用回复状态
   const [quotedMessage, setQuotedMessage] = useState<{ role: string; content: string } | null>(null)
   // Diff 对比视图状态
@@ -585,6 +587,32 @@ export default function ChatPage() {
           }
         }
 
+        // ===== 自动生成对话摘要（消息数 >= 4 时触发，不阻塞主流程） =====
+        {
+          const summarySession = useSessionStore.getState().sessions.find(s => s.id === sid)
+          if (summarySession && summarySession.messages.length >= 4) {
+            // 异步调用，不 await，不阻塞
+            fetch('/api/chat/summarize', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                messages: summarySession.messages.slice(-10).map(m => ({
+                  role: m.role,
+                  content: m.content.slice(0, 300),  // 截断内容节省 token
+                })),
+                workingDirectory: summarySession.workingDirectory,
+              }),
+            })
+              .then(r => r.json())
+              .then(data => {
+                if (data.summary) {
+                  useSessionStore.getState().setSessionSummary(sid, data.summary, data.keyTopics)
+                }
+              })
+              .catch(() => {}) // 静默失败
+          }
+        }
+
         break
       }
       case 'error': {
@@ -728,6 +756,11 @@ export default function ChatPage() {
           systemPrompt: currentSessionData?.systemPrompt || undefined,
           permissionMode: store.permissionMode !== 'default' ? store.permissionMode : undefined,
           cliSessionId: currentSessionData?.cliSessionId || undefined,
+          effort: currentSessionData?.effort,
+          maxBudgetUsd: currentSessionData?.maxBudgetUsd,
+          fallbackModel: currentSessionData?.fallbackModel,
+          allowedTools: currentSessionData?.allowedTools,
+          disallowedTools: currentSessionData?.disallowedTools,
         }),
       })
     } catch (err) {
@@ -1064,29 +1097,7 @@ export default function ChatPage() {
         break
       }
       case '/git': {
-        // 获取当前项目的 Git 状态
-        const workDir = session?.workingDirectory
-        if (!workDir) {
-          toast.error('请先选择项目文件夹')
-          break
-        }
-        // 异步获取 Git 状态并显示为系统消息
-        const sid = sessionId || activeSessionId
-        if (sid) {
-          const msgId = addMessage(sid, { role: 'assistant', content: '正在获取 Git 状态...' })
-          fetch(`/api/filesystem/git-status?path=${encodeURIComponent(workDir)}`)
-            .then(res => res.json())
-            .then(data => {
-              if (data.info) {
-                updateMessage(sid, msgId, `\`\`\`\n${data.info}\n\`\`\``)
-              } else {
-                updateMessage(sid, msgId, '无法获取 Git 状态')
-              }
-            })
-            .catch(() => {
-              updateMessage(sid, msgId, '获取 Git 状态失败，请检查网络连接')
-            })
-        }
+        setShowGitPanel(true)
         break
       }
       case '/files': {
@@ -1333,6 +1344,18 @@ export default function ChatPage() {
         open={showWorkflow}
         onClose={() => setShowWorkflow(false)}
         onExecute={handleWorkflowExecute}
+      />
+
+      {/* Git 操作面板 */}
+      <GitPanel
+        workingDirectory={session?.workingDirectory}
+        open={showGitPanel}
+        onClose={() => setShowGitPanel(false)}
+        onSendMessage={(msg) => {
+          setShowGitPanel(false)
+          // 延迟一下再发送，让面板关闭动画完成
+          setTimeout(() => handleSend(msg), 300)
+        }}
       />
 
       {/* Diff 对比视图 */}

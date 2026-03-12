@@ -425,13 +425,14 @@ router.get('/tree', async (req, res) => {
 
 /**
  * GET /api/filesystem/git-status?path=<dir_path>
- * 返回指定目录的详细 Git 状态信息（分支、最近提交、更改文件列表）。
+ * 返回指定目录的详细 Git 状态信息：分支、ahead/behind、暂存/修改/未跟踪文件列表。
+ * 使用 `git status --porcelain -b` 解析输出。
  */
 router.get('/git-status', async (req, res) => {
   try {
     const rawPath = req.query.path as string | undefined
     if (!rawPath) {
-      return res.json({ isGitRepo: false, info: '未指定项目路径' })
+      return res.json({ error: 'Not a git repository' })
     }
 
     const targetPath = path.resolve(decodeURIComponent(rawPath))
@@ -439,83 +440,167 @@ router.get('/git-status', async (req, res) => {
     // 检查是否为 Git 仓库
     const gitRepo = await isGitRepo(targetPath)
     if (!gitRepo) {
-      return res.json({ isGitRepo: false, info: '当前目录不是 Git 仓库' })
+      return res.json({ error: 'Not a git repository' })
     }
 
     const execOpts = { cwd: targetPath, timeout: 5000 }
-    const results: Record<string, string> = {}
 
-    // 获取当前分支
+    // 使用 --porcelain -b 获取机器可解析的状态输出
+    let porcelainOutput = ''
     try {
-      const { stdout } = await execFileAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], execOpts)
-      results.branch = stdout.trim()
+      const { stdout } = await execFileAsync('git', ['status', '--porcelain', '-b'], execOpts)
+      porcelainOutput = stdout
     } catch {
-      results.branch = 'unknown'
+      return res.json({ error: 'Failed to execute git status' })
     }
 
-    // 获取最近 3 条提交日志
-    try {
-      const { stdout } = await execFileAsync('git', [
-        'log', '--oneline', '-3', '--format=%h %s (%cr)'
-      ], execOpts)
-      results.recentCommits = stdout.trim()
-    } catch {
-      results.recentCommits = ''
+    const lines = porcelainOutput.split('\n').filter(l => l.length > 0)
+
+    // 解析第一行分支信息：## branch...origin/branch [ahead N, behind M]
+    let branch = 'unknown'
+    let ahead = 0
+    let behind = 0
+
+    if (lines.length > 0 && lines[0].startsWith('## ')) {
+      const branchLine = lines[0].substring(3) // 去掉 "## "
+      // 解析分支名（可能包含 ...origin/branch 和 [ahead N, behind M]）
+      const bracketMatch = branchLine.match(/\[(.+)\]/)
+      if (bracketMatch) {
+        const info = bracketMatch[1]
+        const aheadMatch = info.match(/ahead (\d+)/)
+        const behindMatch = info.match(/behind (\d+)/)
+        if (aheadMatch) ahead = parseInt(aheadMatch[1], 10)
+        if (behindMatch) behind = parseInt(behindMatch[1], 10)
+      }
+      // 分支名：取 ... 前的部分，或整个（去掉 [...] 部分）
+      const branchPart = branchLine.replace(/\s*\[.+\]/, '')
+      const dotIndex = branchPart.indexOf('...')
+      branch = dotIndex >= 0 ? branchPart.substring(0, dotIndex) : branchPart
     }
 
-    // 获取工作区状态
-    try {
-      const { stdout } = await execFileAsync('git', ['status', '--short'], execOpts)
-      results.status = stdout.trim()
-    } catch {
-      results.status = ''
+    // 解析文件状态行（跳过第一行分支信息）
+    const staged: { file: string; status: string }[] = []
+    const modified: { file: string; status: string }[] = []
+    const untracked: { file: string }[] = []
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i]
+      if (line.length < 4) continue // 至少 "XY file" 格式
+
+      const indexStatus = line[0]   // 暂存区状态
+      const workTreeStatus = line[1] // 工作区状态
+      const fileName = line.substring(3) // 文件名（跳过 "XY "）
+
+      // 未跟踪文件
+      if (indexStatus === '?' && workTreeStatus === '?') {
+        untracked.push({ file: fileName })
+        continue
+      }
+
+      // 暂存区有变更
+      if (indexStatus !== ' ' && indexStatus !== '?') {
+        staged.push({ file: fileName, status: indexStatus })
+      }
+
+      // 工作区有变更
+      if (workTreeStatus !== ' ' && workTreeStatus !== '?') {
+        modified.push({ file: fileName, status: workTreeStatus })
+      }
     }
 
-    // 获取未推送的提交数
-    try {
-      const { stdout } = await execFileAsync('git', [
-        'rev-list', '--count', `origin/${results.branch}..HEAD`
-      ], execOpts)
-      results.unpushed = stdout.trim()
-    } catch {
-      results.unpushed = '0'
-    }
-
-    // 格式化输出
-    const lines: string[] = []
-    lines.push(`Git 状态: ${targetPath}`)
-    lines.push(`分支: ${results.branch}`)
-
-    if (results.unpushed && results.unpushed !== '0') {
-      lines.push(`未推送提交: ${results.unpushed} 个`)
-    }
-
-    if (results.status) {
-      const changedFiles = results.status.split('\n').length
-      lines.push(`工作区变更: ${changedFiles} 个文件`)
-      lines.push('')
-      lines.push('变更文件:')
-      lines.push(results.status)
-    } else {
-      lines.push('工作区: 干净')
-    }
-
-    if (results.recentCommits) {
-      lines.push('')
-      lines.push('最近提交:')
-      lines.push(results.recentCommits)
-    }
+    const hasChanges = staged.length > 0 || modified.length > 0 || untracked.length > 0
 
     res.json({
-      isGitRepo: true,
-      branch: results.branch,
-      hasChanges: !!results.status,
-      unpushed: parseInt(results.unpushed || '0', 10),
-      info: lines.join('\n'),
+      branch,
+      ahead,
+      behind,
+      staged,
+      modified,
+      untracked,
+      hasChanges,
     })
   } catch (err) {
     console.error('获取 Git 状态失败:', err)
     res.status(500).json({ error: 'Failed to get git status' })
+  }
+})
+
+/**
+ * GET /api/filesystem/git-diff?path=<dir_path>&file=<file_path>
+ * 返回指定目录（或特定文件）的 Git diff 内容和统计信息。
+ */
+router.get('/git-diff', async (req, res) => {
+  try {
+    const rawPath = req.query.path as string | undefined
+    const rawFile = req.query.file as string | undefined
+
+    if (!rawPath) {
+      return res.status(400).json({ error: '缺少 path 参数' })
+    }
+
+    // 安全检查
+    const pathCheck = validatePathSecurity(rawPath)
+    if (!pathCheck.valid) {
+      return res.status(403).json({ error: pathCheck.error })
+    }
+
+    const targetPath = pathCheck.resolvedPath
+
+    // 检查是否为 Git 仓库
+    const gitRepo = await isGitRepo(targetPath)
+    if (!gitRepo) {
+      return res.json({ error: 'Not a git repository' })
+    }
+
+    const execOpts = { cwd: targetPath, timeout: 10000, maxBuffer: 5 * 1024 * 1024 }
+
+    // 构建 git diff 命令参数
+    const diffArgs = ['diff']
+    const statArgs = ['diff', '--stat']
+
+    if (rawFile) {
+      // 安全检查：文件路径不能包含 ..
+      const decodedFile = decodeURIComponent(rawFile)
+      if (decodedFile.includes('..')) {
+        return res.status(403).json({ error: '文件路径中不允许包含 ".."' })
+      }
+      diffArgs.push('--', decodedFile)
+      statArgs.push('--', decodedFile)
+    }
+
+    // 获取 diff 内容
+    let diffOutput = ''
+    try {
+      const { stdout } = await execFileAsync('git', diffArgs, execOpts)
+      diffOutput = stdout
+    } catch {
+      diffOutput = ''
+    }
+
+    // 获取统计信息
+    let insertions = 0
+    let deletions = 0
+    try {
+      const { stdout } = await execFileAsync('git', statArgs, execOpts)
+      // 解析 stat 输出的最后一行，格式如：
+      // "3 files changed, 10 insertions(+), 3 deletions(-)"
+      const statLines = stdout.trim().split('\n')
+      const summaryLine = statLines[statLines.length - 1] || ''
+      const insertMatch = summaryLine.match(/(\d+) insertion/)
+      const deleteMatch = summaryLine.match(/(\d+) deletion/)
+      if (insertMatch) insertions = parseInt(insertMatch[1], 10)
+      if (deleteMatch) deletions = parseInt(deleteMatch[1], 10)
+    } catch {
+      // stat 获取失败不影响整体
+    }
+
+    res.json({
+      diff: diffOutput,
+      stats: { insertions, deletions },
+    })
+  } catch (err) {
+    console.error('获取 Git diff 失败:', err)
+    res.status(500).json({ error: 'Failed to get git diff' })
   }
 })
 

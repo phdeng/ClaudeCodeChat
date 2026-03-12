@@ -141,7 +141,20 @@ export class ClaudeCodeManager extends EventEmitter {
     }
   }
 
-  async send(message: string, images?: ImageAttachment[]): Promise<void> {
+  async send(message: string, images?: ImageAttachment[], options?: {
+    /** 推理努力程度 */
+    effort?: 'low' | 'medium' | 'high' | 'max'
+    /** 最大预算（美元） */
+    maxBudgetUsd?: number
+    /** 备用模型 */
+    fallbackModel?: string
+    /** 允许使用的工具列表 */
+    allowedTools?: string[]
+    /** 禁止使用的工具列表 */
+    disallowedTools?: string[]
+    /** 从 PR 加载上下文 */
+    fromPr?: string
+  }): Promise<void> {
     // 预先构建环境变量（包含用户自定义环境变量）
     const env = await buildEnv()
 
@@ -186,6 +199,26 @@ export class ClaudeCodeManager extends EventEmitter {
 
           if (this.systemPrompt) {
             args.push('--system-prompt', this.systemPrompt)
+          }
+
+          // 可选 CLI 参数
+          if (options?.effort) {
+            args.push('--effort', options.effort)
+          }
+          if (options?.maxBudgetUsd && options.maxBudgetUsd > 0) {
+            args.push('--max-budget-usd', String(options.maxBudgetUsd))
+          }
+          if (options?.fallbackModel) {
+            args.push('--fallback-model', options.fallbackModel)
+          }
+          if (options?.allowedTools?.length) {
+            args.push('--allowedTools', options.allowedTools.join(','))
+          }
+          if (options?.disallowedTools?.length) {
+            args.push('--disallowedTools', options.disallowedTools.join(','))
+          }
+          if (options?.fromPr) {
+            args.push('--from-pr', options.fromPr)
           }
 
           // 使用 --resume 恢复已有会话（保持多轮对话上下文）

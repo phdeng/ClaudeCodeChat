@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback, useRef, type TouchEvent as ReactTouchEvent, type DragEvent } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
-import { PanelLeftClose, PanelLeft, MessageSquare, ChevronDown, Zap, FolderOpen, Sun, Moon, Monitor, Volume2, VolumeX, Cloud, CloudOff, Loader2, Shield, ClipboardList, Maximize2, Minimize2, Bell, RefreshCw, X, Plus, ChevronLeft, ChevronRight as ChevronRightIcon, List, Search, Settings, BookOpen } from 'lucide-react'
+import { PanelLeftClose, PanelLeft, MessageSquare, ChevronDown, Zap, FolderOpen, Sun, Moon, Monitor, Volume2, VolumeX, Cloud, CloudOff, Loader2, Shield, ClipboardList, Maximize2, Minimize2, Bell, RefreshCw, X, Plus, ChevronLeft, ChevronRight as ChevronRightIcon, List, Search, Settings, BookOpen, SlidersHorizontal } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
+import AdvancedParamsPanel from '../components/AdvancedParamsPanel'
 import FolderPicker from '../components/FolderPicker'
 import KeyboardShortcutsDialog from '../components/KeyboardShortcutsDialog'
 import GlobalCommandPalette from '../components/GlobalCommandPalette'
@@ -55,6 +56,7 @@ export default function ChatLayout() {
   const [showCommandPalette, setShowCommandPalette] = useState(false)
   const [zenMode, setZenMode] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
+  const [showAdvancedParams, setShowAdvancedParams] = useState(false)
   const modelPickerRef = useRef<HTMLDivElement>(null)
   const notificationBtnRef = useRef<HTMLDivElement>(null)
   const tabsContainerRef = useRef<HTMLDivElement>(null)
@@ -659,6 +661,42 @@ export default function ChatLayout() {
               />
             </div>
             )}
+
+            {/* 高级参数 */}
+            <div className="relative">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      onClick={() => setShowAdvancedParams(!showAdvancedParams)}
+                      className={cn(
+                        'text-muted-foreground',
+                        showAdvancedParams && 'text-primary bg-primary/10'
+                      )}
+                    >
+                      <SlidersHorizontal size={14} />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" sideOffset={4}>
+                    {t('advancedParams.title')}
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              {/* 非默认 effort 指示器 */}
+              {activeSession?.effort && activeSession.effort !== 'medium' && (
+                <span className="absolute -top-0.5 -right-0.5 size-2 rounded-full bg-primary" />
+              )}
+
+              <AdvancedParamsPanel
+                sessionId={activeSessionId || ''}
+                open={showAdvancedParams}
+                onClose={() => setShowAdvancedParams(false)}
+                onOpenChange={setShowAdvancedParams}
+              />
+            </div>
 
             {/* 权限模式切换 */}
             <TooltipProvider>

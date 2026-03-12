@@ -55,6 +55,20 @@ export interface Session {
   unreadCount?: number
   /** CLI 会话 ID（由 Claude CLI 分配，用于 --session-id 继续对话） */
   cliSessionId?: string
+  /** CLI 推理深度 (low/medium/high/max) */
+  effort?: 'low' | 'medium' | 'high' | 'max'
+  /** CLI 硬预算限制（美元） */
+  maxBudgetUsd?: number
+  /** CLI 备选模型（主模型过载时自动降级） */
+  fallbackModel?: string
+  /** CLI 允许的工具列表 */
+  allowedTools?: string[]
+  /** CLI 禁止的工具列表 */
+  disallowedTools?: string[]
+  /** 会话自动摘要 */
+  summary?: string
+  /** 关键话题标签 */
+  keyTopics?: string[]
 }
 
 interface SessionState {
@@ -182,6 +196,18 @@ interface SessionState {
   addStreamingSession: (sessionId: string) => void
   /** 移除一个正在流式传输的会话 */
   removeStreamingSession: (sessionId: string) => void
+  /** 设置会话推理深度 */
+  setSessionEffort: (sessionId: string, effort: Session['effort']) => void
+  /** 设置会话硬预算限制（美元） */
+  setSessionMaxBudget: (sessionId: string, maxBudgetUsd: number) => void
+  /** 设置会话备选模型 */
+  setSessionFallbackModel: (sessionId: string, model: string) => void
+  /** 设置会话允许的工具列表 */
+  setSessionAllowedTools: (sessionId: string, tools: string[]) => void
+  /** 设置会话禁止的工具列表 */
+  setSessionDisallowedTools: (sessionId: string, tools: string[]) => void
+  /** 设置会话自动摘要 */
+  setSessionSummary: (sessionId: string, summary: string, keyTopics?: string[]) => void
 }
 
 const generateId = () => crypto.randomUUID()
@@ -717,6 +743,64 @@ export const useSessionStore = create<SessionState>()(persist((set, get) => ({
       next.delete(sessionId)
       return { streamingSessions: next }
     })
+  },
+
+  setSessionEffort: (sessionId, effort) => {
+    set((state) => ({
+      sessions: state.sessions.map((s) =>
+        s.id === sessionId ? { ...s, effort } : s
+      ),
+    }))
+  },
+
+  setSessionMaxBudget: (sessionId, maxBudgetUsd) => {
+    set((state) => ({
+      sessions: state.sessions.map((s) =>
+        s.id === sessionId
+          ? { ...s, maxBudgetUsd: maxBudgetUsd > 0 ? maxBudgetUsd : undefined }
+          : s
+      ),
+    }))
+  },
+
+  setSessionFallbackModel: (sessionId, model) => {
+    set((state) => ({
+      sessions: state.sessions.map((s) =>
+        s.id === sessionId
+          ? { ...s, fallbackModel: model || undefined }
+          : s
+      ),
+    }))
+  },
+
+  setSessionAllowedTools: (sessionId, tools) => {
+    set((state) => ({
+      sessions: state.sessions.map((s) =>
+        s.id === sessionId
+          ? { ...s, allowedTools: tools.length > 0 ? tools : undefined }
+          : s
+      ),
+    }))
+  },
+
+  setSessionDisallowedTools: (sessionId, tools) => {
+    set((state) => ({
+      sessions: state.sessions.map((s) =>
+        s.id === sessionId
+          ? { ...s, disallowedTools: tools.length > 0 ? tools : undefined }
+          : s
+      ),
+    }))
+  },
+
+  setSessionSummary: (sessionId, summary, keyTopics) => {
+    set((state) => ({
+      sessions: state.sessions.map((s) =>
+        s.id === sessionId
+          ? { ...s, summary: summary || undefined, keyTopics: keyTopics && keyTopics.length > 0 ? keyTopics : s.keyTopics }
+          : s
+      ),
+    }))
   },
 
   syncToBackend: async () => {

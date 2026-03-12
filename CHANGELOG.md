@@ -4,6 +4,31 @@
 
 ---
 
+## [v1.4.0] — 2026-03-12
+
+### 新增
+- **CLI 深度参数面板**：顶部工具栏新增高级参数按钮，支持 4 项 CLI 参数配置：
+  - Effort 推理深度（low/medium/high/max）
+  - 预算硬限制（`--max-budget-usd` CLI 层面费用上限）
+  - Fallback 备选模型（主模型过载时自动降级）
+  - 工具权限精细控制（白/黑名单模式）
+- **Git 操作集成面板**：`/git` 命令升级为图形化面板，包含：
+  - Git 状态可视化（分支名 + ahead/behind + staged/modified/untracked 分组）
+  - 文件级 Diff 预览（绿色增/红色删/蓝色 @@ 头）
+  - 一键操作：让 Claude commit / review / push
+- **对话自动摘要**：CLI 回复完成后自动调用 Haiku 生成 1-2 句摘要 + 关键词标签，存储到 Session
+- **后端 Git API**：`/api/filesystem/git-status`（porcelain 解析）+ `/api/filesystem/git-diff`（文件级 diff + 统计）
+- **后端摘要 API**：`/api/chat/summarize`（spawn claude --print 通过 stdin 传入 prompt）
+- **CLI 参数透传**：`--effort`、`--max-budget-usd`、`--fallback-model`、`--allowedTools`、`--disallowedTools`、`--from-pr`
+
+### 变更
+- 版本号从 1.3.0 升级到 1.4.0
+- `/git` 命令从文本输出改为打开 Git 操作面板
+- Session 接口扩展 7 个字段（effort/maxBudgetUsd/fallbackModel/allowedTools/disallowedTools/summary/keyTopics）
+- `/api/chat/send` 路由支持接收和传递 6 个新 CLI 参数
+
+---
+
 ## [v1.3.0] — 2026-03-12
 
 ### 新增
@@ -149,6 +174,7 @@
 
 ---
 
+[v1.4.0]: https://github.com/phdeng/ClaudeCodeChat/compare/v1.3.0...v1.4.0
 [v1.3.0]: https://github.com/phdeng/ClaudeCodeChat/compare/v1.2.0...v1.3.0
 [v1.2.0]: https://github.com/phdeng/ClaudeCodeChat/compare/v1.1.0...v1.2.0
 [v1.1.0]: https://github.com/phdeng/ClaudeCodeChat/compare/v1.0.0...v1.1.0
