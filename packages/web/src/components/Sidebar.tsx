@@ -1,12 +1,12 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Settings, History, X, MessageSquare, Sparkles, Search, Trash2, FolderOpen, Download, FileText, FileJson, FileCode, Pin, Upload, Tag, Eye, Archive, ArchiveRestore, ChevronRight, ChevronDown, GripVertical, BookTemplate, ScrollText, Loader2, Palette, Check, XCircle, MoreHorizontal, BookOpen, GitBranch, Star, Store } from 'lucide-react'
+import { Plus, Settings, History, X, MessageSquare, Sparkles, Search, Trash2, FolderOpen, Download, FileText, FileJson, FileCode, AlignLeft, Pin, Upload, Tag, Eye, Archive, ArchiveRestore, ChevronRight, ChevronDown, GripVertical, BookTemplate, ScrollText, Loader2, Palette, Check, XCircle, MoreHorizontal, BookOpen, GitBranch, Star, Store } from 'lucide-react'
 import { toast } from 'sonner'
 import { useSessionStore, type Session } from '../stores/sessionStore'
 import { useSessionTabsStore } from '../stores/sessionTabsStore'
 import { useCategoryStore } from '../stores/categoryStore'
 import { useTranslation } from '../i18n'
-import { exportSessionAsMarkdown, exportSessionAsJson, exportSessionAsHtml, importSessionFromJson } from '../utils/exportChat'
+import { exportSessionAsMarkdown, exportSessionAsJson, exportSessionAsHtml, exportSessionAsTxt, importSessionFromJson } from '../utils/exportChat'
 import ChatExportPreview from './ChatExportPreview'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -837,6 +837,13 @@ export default function Sidebar({ onClose }: SidebarProps) {
                                   }}>
                                     <FileCode size={14} className="opacity-60" />
                                     HTML (.html)
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onSelect={() => {
+                                    exportSessionAsTxt(session)
+                                    toast.success(t('sidebar.exportedTXT' as any))
+                                  }}>
+                                    <AlignLeft size={14} className="opacity-60" />
+                                    TXT (.txt)
                                   </DropdownMenuItem>
                                   <DropdownMenuSeparator />
                                   <DropdownMenuItem onSelect={() => setPreviewSessionId(session.id)}>

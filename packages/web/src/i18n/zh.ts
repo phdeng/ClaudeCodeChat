@@ -50,6 +50,7 @@ const zh = {
     exportedMarkdown: '已导出为 Markdown',
     exportedJSON: '已导出为 JSON',
     exportedHTML: '已导出为 HTML',
+    exportedTXT: '已导出为纯文本',
     exportChat: '导出对话',
     previewPrint: '预览 / 打印',
     viewLog: '查看日志',

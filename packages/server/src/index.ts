@@ -150,7 +150,7 @@ app.get('/api/health', (_req, res) => {
 })
 
 app.get('/api/version', (_req, res) => {
-  res.json({ version: '1.12.0' })
+  res.json({ version: '1.13.0' })
 })
 
 app.get('/api/claude-code/status', async (_req, res) => {

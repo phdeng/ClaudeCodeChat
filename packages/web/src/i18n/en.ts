@@ -52,6 +52,7 @@ const en: Locale = {
     exportedMarkdown: 'Exported as Markdown',
     exportedJSON: 'Exported as JSON',
     exportedHTML: 'Exported as HTML',
+    exportedTXT: 'Exported as TXT',
     exportChat: 'Export Chat',
     previewPrint: 'Preview / Print',
     viewLog: 'View Log',

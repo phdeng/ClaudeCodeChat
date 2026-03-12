@@ -159,6 +159,46 @@ export function downloadFile(content: string, filename: string, mimeType: string
 }
 
 /**
+ * 导出对话会话为纯文本 TXT 格式
+ */
+export function exportToTxt(session: Session): string {
+  const lines: string[] = []
+
+  lines.push(`# ${session.title}`)
+  lines.push('')
+  lines.push(`日期: ${formatDate(session.createdAt)}`)
+  if (session.workingDirectory) {
+    lines.push(`工作目录: ${session.workingDirectory}`)
+  }
+  lines.push('')
+  lines.push('─'.repeat(40))
+  lines.push('')
+
+  for (const msg of session.messages) {
+    const time = formatDate(msg.timestamp)
+    lines.push(`[${roleName(msg.role)}] ${time}`)
+    lines.push('')
+    lines.push(msg.content)
+    lines.push('')
+    lines.push('─'.repeat(40))
+    lines.push('')
+  }
+
+  lines.push(`导出自 Claude Code Chat · ${new Date().toLocaleDateString('zh-CN')}`)
+
+  return lines.join('\n')
+}
+
+/**
+ * 导出会话为 TXT 文件并下载
+ */
+export function exportSessionAsTxt(session: Session): void {
+  const content = exportToTxt(session)
+  const filename = `${session.title}.txt`
+  downloadFile(content, filename, 'text/plain;charset=utf-8')
+}
+
+/**
  * 导出会话为 Markdown 文件并下载
  */
 export function exportSessionAsMarkdown(session: Session): void {

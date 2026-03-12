@@ -4,6 +4,14 @@
 
 ---
 
+## [1.13.0] — 2026-03-13
+
+### 新增
+- **消息日期分隔线**：不同日期的消息之间自动显示分隔线（今天/昨天/X月X日），方便定位时间
+- **TXT 纯文本导出**：会话导出菜单新增 .txt 格式，包含角色、时间和分隔线
+
+---
+
 ## [1.12.0] — 2026-03-13
 
 ### 新增
@@ -305,6 +313,7 @@
 
 ---
 
+[1.13.0]: https://github.com/phdeng/ClaudeCodeChat/compare/v1.12.0...v1.13.0
 [1.12.0]: https://github.com/phdeng/ClaudeCodeChat/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/phdeng/ClaudeCodeChat/compare/v1.10.0...v1.11.0
 [1.10.0]: https://github.com/phdeng/ClaudeCodeChat/compare/v1.9.0...v1.10.0

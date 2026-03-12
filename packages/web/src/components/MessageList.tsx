@@ -381,25 +381,24 @@ function estimateReadingTime(text: string): string {
 }
 
 /** 格式化日期分隔线文本：今天/昨天/M月D日/YYYY年M月D日 */
-function formatDateSeparator(ts: number): string {
-  const date = new Date(ts)
+function formatDateSeparator(timestamp: number): string {
+  const date = new Date(timestamp)
   const now = new Date()
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const yesterday = new Date(today.getTime() - 86400000)
+  const msgDate = new Date(date.getFullYear(), date.getMonth(), date.getDate())
 
-  // 获取"今天"的 0 点和"昨天"的 0 点
-  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
-  const yesterdayStart = todayStart - 86400000
+  if (msgDate.getTime() === today.getTime()) return '今天'
+  if (msgDate.getTime() === yesterday.getTime()) return '昨天'
 
-  const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
+  const year = date.getFullYear()
+  const month = date.getMonth() + 1
+  const day = date.getDate()
 
-  if (dayStart === todayStart) return '今天'
-  if (dayStart === yesterdayStart) return '昨天'
-
-  // 不同年份显示完整年份
-  if (date.getFullYear() !== now.getFullYear()) {
-    return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`
+  if (year === now.getFullYear()) {
+    return `${month}月${day}日`
   }
-
-  return `${date.getMonth() + 1}月${date.getDate()}日`
+  return `${year}年${month}月${day}日`
 }
 
 /** 判断两个时间戳是否属于同一天 */
@@ -411,6 +410,14 @@ function isSameDay(ts1: number, ts2: number): boolean {
     d1.getMonth() === d2.getMonth() &&
     d1.getDate() === d2.getDate()
   )
+}
+
+/** 判断是否需要在当前消息前显示日期分隔线 */
+function shouldShowDateSeparator(current: { timestamp: number }, previous: { timestamp: number } | undefined): boolean {
+  if (!previous) return true  // 第一条消息前显示日期
+  const curDate = new Date(current.timestamp)
+  const prevDate = new Date(previous.timestamp)
+  return curDate.toDateString() !== prevDate.toDateString()
 }
 
 /** 格式化 token 数量，超过 1000 显示为 x.xk */
@@ -3697,8 +3704,7 @@ export default function MessageList({ messages, highlightedMessageId, searchQuer
             }
 
             // 判断是否需要在此消息前插入日期分隔线
-            const showDateSeparator =
-              idx === 0 || !isSameDay(msg.timestamp, messages[idx - 1].timestamp)
+            const showDateSeparator = shouldShowDateSeparator(msg, idx > 0 ? messages[idx - 1] : undefined)
 
             // 判断是否为最后一条已完成的 assistant 消息（用于显示快捷回复）
             const isLastAssistantMessage = msg.role === 'assistant' && !msg.isStreaming && msg.content &&
@@ -3720,12 +3726,12 @@ export default function MessageList({ messages, highlightedMessageId, searchQuer
               <>
               {/* 日期分隔线 */}
               {showDateSeparator && (
-                <div className="flex items-center gap-3 my-4 select-none">
-                  <div className="flex-1 border-t border-border opacity-30" />
-                  <span className="text-[11px] text-muted-foreground whitespace-nowrap">
+                <div key={`date-sep-${msg.id}`} className="flex items-center gap-3 my-4 px-4 select-none">
+                  <div className="flex-1 h-px bg-border" />
+                  <span className="text-[11px] text-muted-foreground font-medium whitespace-nowrap">
                     {formatDateSeparator(msg.timestamp)}
                   </span>
-                  <div className="flex-1 border-t border-border opacity-30" />
+                  <div className="flex-1 h-px bg-border" />
                 </div>
               )}
               <div
