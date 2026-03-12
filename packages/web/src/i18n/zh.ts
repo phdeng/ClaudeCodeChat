@@ -565,6 +565,23 @@ const zh = {
     removedFromFavorites: '已取消星标收藏',
   },
 
+  // ===== 插件市场 =====
+  marketplace: {
+    title: '插件市场',
+    mcpTab: 'MCP 服务器',
+    skillTab: '技能模板',
+    search: '搜索插件...',
+    install: '安装',
+    installed: '已安装',
+    installing: '安装中...',
+    preview: '预览',
+    addToProject: '添加到项目',
+    selectProjectFirst: '请先选择项目',
+    allCategories: '全部',
+    installSuccess: '安装成功',
+    by: '作者',
+  },
+
   // ===== 高级参数 =====
   advancedParams: {
     title: '高级参数',

@@ -567,6 +567,23 @@ const en: Locale = {
     removedFromFavorites: 'Removed from favorites',
   },
 
+  // ===== Marketplace =====
+  marketplace: {
+    title: 'Marketplace',
+    mcpTab: 'MCP Servers',
+    skillTab: 'Skill Templates',
+    search: 'Search plugins...',
+    install: 'Install',
+    installed: 'Installed',
+    installing: 'Installing...',
+    preview: 'Preview',
+    addToProject: 'Add to Project',
+    selectProjectFirst: 'Select a project first',
+    allCategories: 'All',
+    installSuccess: 'Installed successfully',
+    by: 'by',
+  },
+
   // ===== Advanced Parameters =====
   advancedParams: {
     title: 'Advanced Parameters',

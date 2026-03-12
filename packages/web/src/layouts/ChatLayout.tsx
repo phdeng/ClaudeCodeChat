@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, type TouchEvent as ReactTouchEvent, type DragEvent } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
-import { PanelLeftClose, PanelLeft, MessageSquare, ChevronDown, Zap, FolderOpen, Sun, Moon, Monitor, Volume2, VolumeX, Cloud, CloudOff, Loader2, Shield, ClipboardList, Maximize2, Minimize2, Bell, RefreshCw, X, Plus, ChevronLeft, ChevronRight as ChevronRightIcon, List, Search, Settings, BookOpen, SlidersHorizontal } from 'lucide-react'
+import { PanelLeftClose, PanelLeft, MessageSquare, ChevronDown, Zap, FolderOpen, Sun, Moon, Monitor, Volume2, VolumeX, Cloud, CloudOff, Loader2, Shield, ClipboardList, Maximize2, Minimize2, Bell, RefreshCw, X, Plus, ChevronLeft, ChevronRight as ChevronRightIcon, List, Search, Settings, BookOpen, SlidersHorizontal, Store } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
 import AdvancedParamsPanel from '../components/AdvancedParamsPanel'
 import FolderPicker from '../components/FolderPicker'
@@ -1146,6 +1146,19 @@ export default function ChatLayout() {
           >
             <BookOpen size={20} />
             <span className="text-[10px] font-medium">{t('knowledge.title')}</span>
+          </button>
+
+          <button
+            onClick={() => navigate('/marketplace')}
+            className={cn(
+              'flex flex-col items-center justify-center gap-0.5 flex-1 h-full transition-colors',
+              location.pathname === '/marketplace'
+                ? 'text-primary'
+                : 'text-muted-foreground'
+            )}
+          >
+            <Store size={20} />
+            <span className="text-[10px] font-medium">{t('marketplace.title' as any)}</span>
           </button>
 
           <button

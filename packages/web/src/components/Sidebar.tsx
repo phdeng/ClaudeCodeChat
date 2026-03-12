@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Settings, History, X, MessageSquare, Sparkles, Search, Trash2, FolderOpen, Download, FileText, FileJson, FileCode, Pin, Upload, Tag, Eye, Archive, ArchiveRestore, ChevronRight, ChevronDown, GripVertical, BookTemplate, ScrollText, Loader2, Palette, Check, XCircle, MoreHorizontal, BookOpen, GitBranch, Star } from 'lucide-react'
+import { Plus, Settings, History, X, MessageSquare, Sparkles, Search, Trash2, FolderOpen, Download, FileText, FileJson, FileCode, Pin, Upload, Tag, Eye, Archive, ArchiveRestore, ChevronRight, ChevronDown, GripVertical, BookTemplate, ScrollText, Loader2, Palette, Check, XCircle, MoreHorizontal, BookOpen, GitBranch, Star, Store } from 'lucide-react'
 import { toast } from 'sonner'
 import { useSessionStore, type Session } from '../stores/sessionStore'
 import { useCategoryStore } from '../stores/categoryStore'
@@ -1105,6 +1105,17 @@ export default function Sidebar({ onClose }: SidebarProps) {
           >
             <BookOpen size={14} className="opacity-60" />
             {t('knowledge.title' as any)}
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={() => {
+              navigate('/marketplace')
+              if (window.innerWidth < 768) onClose()
+            }}
+            className="w-full justify-start gap-2.5 px-2.5 py-2 text-[13px] text-foreground"
+          >
+            <Store size={14} className="opacity-60" />
+            {t('marketplace.title' as any)}
           </Button>
           <Button
             variant="ghost"
