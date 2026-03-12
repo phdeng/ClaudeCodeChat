@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import CommandPalette, { type CommandPaletteItem, type CommandPaletteHandle } from './CommandPalette'
+import AutoComplete, { type AutoCompleteHandle } from './AutoComplete'
 import { usePhrasesStore } from '@/stores/phrasesStore'
 import { useSessionStore, type Message } from '@/stores/sessionStore'
 import { useIsMobile } from '@/hooks/useMediaQuery'
@@ -161,6 +162,7 @@ export default function ChatInput({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const paletteRef = useRef<CommandPaletteHandle>(null)
+  const autoCompleteRef = useRef<AutoCompleteHandle>(null)
   const recognitionRef = useRef<ISpeechRecognition | null>(null)
   const statsPanelRef = useRef<HTMLDivElement>(null)
   const hashMenuRef = useRef<HTMLDivElement>(null)
@@ -803,6 +805,31 @@ export default function ChatInput({
     [input, trigger, onCommand, onSend]
   )
 
+  // ==================== @ 文件自动补全选中处理 ====================
+  const handleAutoCompleteSelect = useCallback(
+    (value: string) => {
+      if (!trigger || trigger.type !== 'file') return
+
+      // 替换 @query 为 @filepath，并在路径后添加空格
+      const before = input.slice(0, trigger.startIndex)
+      const afterTrigger = input.slice(trigger.startIndex + 1 + trigger.query.length)
+      const newValue = `${before}@${value} ${afterTrigger}`
+      setInput(newValue)
+      setTrigger(null)
+
+      // 将光标移到插入内容之后
+      requestAnimationFrame(() => {
+        if (textareaRef.current) {
+          const newCursorPos = before.length + 1 + value.length + 1
+          textareaRef.current.selectionStart = newCursorPos
+          textareaRef.current.selectionEnd = newCursorPos
+          textareaRef.current.focus()
+        }
+      })
+    },
+    [input, trigger]
+  )
+
   // ==================== 关闭面板 ====================
   const handlePaletteClose = useCallback(() => {
     setTrigger(null)
@@ -841,8 +868,41 @@ export default function ChatInput({
       }
     }
 
-    // @ / 面板打开时拦截导航键
-    if (trigger && trigger.type !== 'hash' && paletteRef.current) {
+    // @ 文件自动补全面板打开时拦截导航键
+    if (trigger?.type === 'file' && autoCompleteRef.current) {
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        autoCompleteRef.current.moveUp()
+        return
+      }
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        autoCompleteRef.current.moveDown()
+        return
+      }
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault()
+        if (autoCompleteRef.current.hasItems()) {
+          autoCompleteRef.current.confirm()
+        }
+        return
+      }
+      if (e.key === 'Tab') {
+        e.preventDefault()
+        if (autoCompleteRef.current.hasItems()) {
+          autoCompleteRef.current.confirm()
+        }
+        return
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        setTrigger(null)
+        return
+      }
+    }
+
+    // / 命令面板打开时拦截导航键
+    if (trigger?.type === 'command' && paletteRef.current) {
       if (e.key === 'ArrowUp') {
         e.preventDefault()
         paletteRef.current.moveUp()
@@ -1190,8 +1250,21 @@ export default function ChatInput({
           </div>
         )}
 
-        {/* 命令面板（@ 文件引用 / 斜杠命令） */}
-        {trigger && trigger.type !== 'hash' && (
+        {/* @ 文件路径自动补全 */}
+        {trigger?.type === 'file' && workingDirectory && (
+          <AutoComplete
+            ref={autoCompleteRef}
+            type="file"
+            query={trigger.query}
+            workingDirectory={workingDirectory}
+            onSelect={handleAutoCompleteSelect}
+            onClose={handlePaletteClose}
+            position={palettePosition}
+          />
+        )}
+
+        {/* / 斜杠命令面板 */}
+        {trigger?.type === 'command' && (
           <CommandPalette
             ref={paletteRef}
             type={trigger.type}

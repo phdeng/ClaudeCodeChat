@@ -532,6 +532,41 @@ const en: Locale = {
     onlyUserReplaceable: 'replaceable',
   },
 
+  // ===== AutoComplete =====
+  autoComplete: {
+    title: 'File Reference',
+    noMatch: 'No matching files',
+    loading: 'Loading...',
+    navigate: 'Navigate',
+    confirm: 'Confirm',
+    dismiss: 'Close',
+    directory: 'Dir',
+  },
+
+  // ===== Favorites =====
+  favorites: {
+    title: 'Favorites',
+    addFavorite: 'Add to favorites',
+    removeFavorite: 'Remove from favorites',
+    noFavorites: 'No favorites yet',
+    searchFavorites: 'Search favorites...',
+    addNote: 'Add note',
+    copyContent: 'Copy content',
+    fromSession: 'From session',
+    category: 'Category',
+    uncategorized: 'Uncategorized',
+    code: 'Code',
+    qa: 'Q&A',
+    note: 'Note',
+    important: 'Important',
+    all: 'All',
+    noteUpdated: 'Note saved',
+    categoryUpdated: 'Category updated',
+    deleted: 'Removed from favorites',
+    addedToFavorites: 'Added to favorites',
+    removedFromFavorites: 'Removed from favorites',
+  },
+
   // ===== Advanced Parameters =====
   advancedParams: {
     title: 'Advanced Parameters',

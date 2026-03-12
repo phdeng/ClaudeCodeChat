@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Settings, History, X, MessageSquare, Sparkles, Search, Trash2, FolderOpen, Download, FileText, FileJson, FileCode, Pin, Upload, Tag, Eye, Archive, ArchiveRestore, ChevronRight, ChevronDown, GripVertical, BookTemplate, ScrollText, Loader2, Palette, Check, XCircle, MoreHorizontal, BookOpen, GitBranch } from 'lucide-react'
+import { Plus, Settings, History, X, MessageSquare, Sparkles, Search, Trash2, FolderOpen, Download, FileText, FileJson, FileCode, Pin, Upload, Tag, Eye, Archive, ArchiveRestore, ChevronRight, ChevronDown, GripVertical, BookTemplate, ScrollText, Loader2, Palette, Check, XCircle, MoreHorizontal, BookOpen, GitBranch, Star } from 'lucide-react'
 import { toast } from 'sonner'
 import { useSessionStore, type Session } from '../stores/sessionStore'
 import { useCategoryStore } from '../stores/categoryStore'
@@ -15,6 +15,8 @@ import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import TagCloudPanel from './TagCloudPanel'
 import SessionTreeView from './SessionTreeView'
+import FavoritesPanel from './FavoritesPanel'
+import { useFavoritesStore } from '../stores/favoritesStore'
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -172,6 +174,10 @@ export default function Sidebar({ onClose }: SidebarProps) {
 
   // 会话分支树视图状态
   const [treeViewSessionId, setTreeViewSessionId] = useState<string | null>(null)
+
+  // 收藏夹面板状态
+  const [showFavoritesPanel, setShowFavoritesPanel] = useState(false)
+  const favoritesCount = useFavoritesStore((s) => s.favorites.length)
 
   /** 调用后端 API 生成会话摘要 */
   const handleGenerateSummary = useCallback(async (session: Session) => {
@@ -1078,6 +1084,19 @@ export default function Sidebar({ onClose }: SidebarProps) {
           </Button>
           <Button
             variant="ghost"
+            onClick={() => setShowFavoritesPanel(true)}
+            className="w-full justify-start gap-2.5 px-2.5 py-2 text-[13px] text-foreground"
+          >
+            <Star size={14} className="opacity-60" />
+            <span className="flex-1 text-left">消息收藏</span>
+            {favoritesCount > 0 && (
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 min-w-[18px] flex items-center justify-center">
+                {favoritesCount}
+              </Badge>
+            )}
+          </Button>
+          <Button
+            variant="ghost"
             onClick={() => {
               navigate('/knowledge')
               if (window.innerWidth < 768) onClose()
@@ -1152,6 +1171,12 @@ export default function Sidebar({ onClose }: SidebarProps) {
         }}
       />
     )}
+
+    {/* 收藏夹面板 */}
+    <FavoritesPanel
+      open={showFavoritesPanel}
+      onClose={() => setShowFavoritesPanel(false)}
+    />
     </>
   )
 }

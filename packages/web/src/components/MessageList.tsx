@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useRef, useState, useCallback, useMemo, useId } from 'react'
-import { Bot, Code, Zap, Lightbulb, FileCode, Copy, Check, RefreshCw, Pencil, ArrowDown, ThumbsUp, ThumbsDown, ChevronRight, ChevronDown, ChevronUp, Sparkles, Eye, FileText, GitBranch, Bookmark, BookmarkCheck, Maximize2, X, ClipboardPaste, BookOpen, Columns3, Search, Settings2, FolderOpen, MessageSquareQuote, Type, User, CheckSquare, Volume2, Square, Languages, Loader2, Link2, GripVertical, SmilePlus, Pin, PinOff, ChevronsUpDown, Terminal, FileEdit, FilePlus, FolderSearch, Wrench, MessageCirclePlus, StickyNote, Share2, Download, History, RotateCcw, Info } from 'lucide-react'
+import { Bot, Code, Zap, Lightbulb, FileCode, Copy, Check, RefreshCw, Pencil, ArrowDown, ThumbsUp, ThumbsDown, ChevronRight, ChevronDown, ChevronUp, Sparkles, Eye, FileText, GitBranch, Bookmark, BookmarkCheck, Maximize2, X, ClipboardPaste, BookOpen, Columns3, Search, Settings2, FolderOpen, MessageSquareQuote, Type, User, CheckSquare, Volume2, Square, Languages, Loader2, Link2, GripVertical, SmilePlus, Pin, PinOff, ChevronsUpDown, Terminal, FileEdit, FilePlus, FolderSearch, Wrench, MessageCirclePlus, StickyNote, Share2, Download, History, RotateCcw, Info, Star } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -14,6 +14,7 @@ import type { Components } from 'react-markdown'
 import type { Message } from '../stores/sessionStore'
 import { useSnippetStore } from '../stores/snippetStore'
 import { useSessionStore } from '../stores/sessionStore'
+import { useFavoritesStore } from '../stores/favoritesStore'
 import { useThemeStore } from '../stores/themeStore'
 import { copyShareLink } from '../utils/shareLink'
 import { cn } from '@/lib/utils'
@@ -1531,6 +1532,8 @@ function MessageActions({
   onTranslate,
   isTranslating,
   onRestoreVersion,
+  onToggleFavorite,
+  isFavorited,
 }: {
   message: Message
   onCopy: () => void
@@ -1549,6 +1552,8 @@ function MessageActions({
   onTranslate?: () => void
   isTranslating?: boolean
   onRestoreVersion?: (versionIndex: number) => void
+  onToggleFavorite?: () => void
+  isFavorited?: boolean
 }) {
   const { copied, copy: doCopy } = useCopyToClipboard()
   // 复制格式菜单显示状态
@@ -1758,6 +1763,26 @@ function MessageActions({
               </Button>
             </TooltipTrigger>
             <TooltipContent side="top">{bookmarked ? '取消收藏' : '收藏'}</TooltipContent>
+          </Tooltip>
+        )}
+
+        {/* 跨会话收藏按钮（星标） */}
+        {onToggleFavorite && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => {
+                  onToggleFavorite()
+                  toast.success(isFavorited ? '已取消星标收藏' : '已添加到收藏夹')
+                }}
+                className="text-foreground h-6 w-6"
+              >
+                <Star size={12} className={isFavorited ? 'fill-yellow-400 text-yellow-400' : ''} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="top">{isFavorited ? '取消星标收藏' : '添加到收藏夹'}</TooltipContent>
           </Tooltip>
         )}
 
@@ -2586,10 +2611,12 @@ interface ContextMenuProps {
   isSpeaking?: boolean
   onTranslate?: () => void
   isTranslating?: boolean
+  onToggleFavorite?: () => void
+  isFavorited?: boolean
 }
 
 /** 右键上下文菜单组件 */
-function ContextMenu({ x, y, message, onClose, onCopy, onEdit, onRegenerate, onFork, onCopyLink, onQuote, onBookmark, isBookmarked, onSaveToKnowledge, onPin, isPinned, onSelectMode, onSpeak, isSpeaking, onTranslate, isTranslating }: ContextMenuProps) {
+function ContextMenu({ x, y, message, onClose, onCopy, onEdit, onRegenerate, onFork, onCopyLink, onQuote, onBookmark, isBookmarked, onSaveToKnowledge, onPin, isPinned, onSelectMode, onSpeak, isSpeaking, onTranslate, isTranslating, onToggleFavorite, isFavorited }: ContextMenuProps) {
   const menuRef = useRef<HTMLDivElement>(null)
 
   // 调整位置避免超出视口
@@ -2632,6 +2659,7 @@ function ContextMenu({ x, y, message, onClose, onCopy, onEdit, onRegenerate, onF
     onFork ? { label: '从此处分叉', icon: GitBranch, onClick: onFork } : null,
     onCopyLink ? { label: '复制消息链接', icon: Link2, onClick: onCopyLink } : null,
     onBookmark ? { label: isBookmarked ? '取消收藏' : '收藏消息', icon: Bookmark, onClick: onBookmark } : null,
+    onToggleFavorite ? { label: isFavorited ? '取消星标收藏' : '添加到收藏夹', icon: Star, onClick: onToggleFavorite } : null,
     message.role === 'assistant' && onSaveToKnowledge ? { label: '保存到知识库', icon: BookOpen, onClick: onSaveToKnowledge } : null,
     onPin ? { label: isPinned ? '取消固定' : '固定消息', icon: isPinned ? PinOff : Pin, onClick: onPin } : null,
     onSpeak ? { label: isSpeaking ? '停止朗读' : '朗读消息', icon: isSpeaking ? Square : Volume2, onClick: onSpeak } : null,
@@ -2832,6 +2860,25 @@ export default function MessageList({ messages, highlightedMessageId, searchQuer
     const sid = useSessionStore.getState().activeSessionId
     if (sid) {
       useSessionStore.getState().togglePinMessage(sid, msgId)
+    }
+  }, [])
+
+  /** 切换消息星标收藏（跨会话收藏夹） */
+  const handleToggleFavorite = useCallback((msg: Message) => {
+    const store = useFavoritesStore.getState()
+    if (store.isFavorited(msg.id)) {
+      store.removeFavoriteByMessageId(msg.id)
+    } else {
+      const sid = useSessionStore.getState().activeSessionId
+      const session = useSessionStore.getState().sessions.find(s => s.id === sid)
+      store.addFavorite({
+        messageId: msg.id,
+        sessionId: sid || '',
+        sessionName: session?.title || '未知会话',
+        role: msg.role,
+        content: msg.content,
+        category: 'uncategorized',
+      })
     }
   }, [])
 
@@ -3793,6 +3840,8 @@ export default function MessageList({ messages, highlightedMessageId, searchQuer
                               useSessionStore.getState().toggleMessageBookmark(sid, msg.id)
                             }
                           }}
+                          onToggleFavorite={() => handleToggleFavorite(msg)}
+                          isFavorited={useFavoritesStore.getState().isFavorited(msg.id)}
                           onPin={() => handleTogglePinMessage(msg.id)}
                           isPinned={msg.pinned}
                           onSpeak={() => handleSpeak(msg.id, msg.content)}
@@ -3883,6 +3932,8 @@ export default function MessageList({ messages, highlightedMessageId, searchQuer
                           useSessionStore.getState().toggleMessageBookmark(sid, msg.id)
                         }
                       }}
+                      onToggleFavorite={() => handleToggleFavorite(msg)}
+                      isFavorited={useFavoritesStore.getState().isFavorited(msg.id)}
                       onSaveToKnowledge={() => setKnowledgeDialogMsg(msg)}
                       onPin={() => handleTogglePinMessage(msg.id)}
                       isPinned={msg.pinned}
@@ -4145,6 +4196,8 @@ export default function MessageList({ messages, highlightedMessageId, searchQuer
             if (sid) useSessionStore.getState().toggleMessageBookmark(sid, contextMenu.message.id)
           }}
           isBookmarked={contextMenu.message.bookmarked}
+          onToggleFavorite={() => handleToggleFavorite(contextMenu.message)}
+          isFavorited={useFavoritesStore.getState().isFavorited(contextMenu.message.id)}
           onSaveToKnowledge={() => {
             setKnowledgeDialogMsg(contextMenu.message)
             setContextMenu(null)

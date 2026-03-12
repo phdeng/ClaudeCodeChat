@@ -530,6 +530,41 @@ const zh = {
     onlyUserReplaceable: '条可替换',
   },
 
+  // ===== 自动补全 =====
+  autoComplete: {
+    title: '文件引用',
+    noMatch: '无匹配文件',
+    loading: '加载中...',
+    navigate: '选择',
+    confirm: '确认',
+    dismiss: '关闭',
+    directory: '目录',
+  },
+
+  // ===== 收藏夹 =====
+  favorites: {
+    title: '消息收藏',
+    addFavorite: '收藏消息',
+    removeFavorite: '取消收藏',
+    noFavorites: '暂无收藏消息',
+    searchFavorites: '搜索收藏...',
+    addNote: '添加备注',
+    copyContent: '复制内容',
+    fromSession: '来自会话',
+    category: '分类',
+    uncategorized: '未分类',
+    code: '代码',
+    qa: '问答',
+    note: '笔记',
+    important: '重要',
+    all: '全部',
+    noteUpdated: '备注已保存',
+    categoryUpdated: '分类已更新',
+    deleted: '已取消收藏',
+    addedToFavorites: '已添加到收藏夹',
+    removedFromFavorites: '已取消星标收藏',
+  },
+
   // ===== 高级参数 =====
   advancedParams: {
     title: '高级参数',
