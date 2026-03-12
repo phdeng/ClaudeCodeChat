@@ -7,10 +7,13 @@ import FolderPicker from '../components/FolderPicker'
 import KeyboardShortcutsDialog from '../components/KeyboardShortcutsDialog'
 import GlobalCommandPalette from '../components/GlobalCommandPalette'
 import NotificationCenter from '../components/NotificationCenter'
+import FileExplorer from '../components/FileExplorer'
+import FileViewer from '../components/FileViewer'
 import { useSessionStore } from '../stores/sessionStore'
 import { useThemeStore } from '../stores/themeStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useNotificationStore } from '../stores/notificationStore'
+import { useFileExplorerStore } from '../stores/fileExplorerStore'
 import { useIsMobile } from '../hooks/useMediaQuery'
 import { initAutoSync } from '../services/sessionSync'
 import { useTranslation } from '../i18n'
@@ -54,7 +57,6 @@ export default function ChatLayout() {
   const [showFolderPicker, setShowFolderPicker] = useState(false)
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [showCommandPalette, setShowCommandPalette] = useState(false)
-  const [zenMode, setZenMode] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const [showAdvancedParams, setShowAdvancedParams] = useState(false)
   const modelPickerRef = useRef<HTMLDivElement>(null)
@@ -67,8 +69,66 @@ export default function ChatLayout() {
   const location = useLocation()
   const { sessions, activeSessionId, createSession, selectedModel, setSelectedModel, permissionMode, setPermissionMode, connectionStatus, setSessionWorkingDirectory, syncToBackend, loadFromBackend, lastSyncTime, isSyncing, setProjectFilter, setActiveSession, networkLatency, reconnectCount, lastDisconnectedAt, backendVersion, openTabs, removeTab, reorderTabs, streamingSessions } = useSessionStore()
   const { mode, toggleTheme } = useThemeStore()
-  const { soundEnabled, toggleSound } = useSettingsStore()
+  const { soundEnabled, toggleSound, zenMode, toggleZenMode, setZenMode } = useSettingsStore()
   const notificationUnreadCount = useNotificationStore((s) => s.unreadCount())
+  const { showFileExplorer, fileExplorerWidth, setFileExplorerWidth, fileTreeWidth, setFileTreeWidth, openTabs: openFileTabs } = useFileExplorerStore()
+
+  // 外部分隔条拖拽状态（整个文件面板 vs 对话区）
+  const [isDraggingResizer, setIsDraggingResizer] = useState(false)
+  const resizerRef = useRef<HTMLDivElement>(null)
+  // 内部分隔条拖拽状态（文件树 vs 文件查看器）
+  const [isDraggingTreeResizer, setIsDraggingTreeResizer] = useState(false)
+
+  // 外部分隔条拖拽处理
+  useEffect(() => {
+    if (!isDraggingResizer) return
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const newWidth = e.clientX
+      setFileExplorerWidth(Math.max(200, Math.min(newWidth, window.innerWidth - 200)))
+    }
+
+    const handleMouseUp = () => {
+      setIsDraggingResizer(false)
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+    document.body.style.userSelect = 'none'
+    document.body.style.cursor = 'col-resize'
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+      document.body.style.userSelect = ''
+      document.body.style.cursor = ''
+    }
+  }, [isDraggingResizer, setFileExplorerWidth])
+
+  // 内部分隔条拖拽处理（文件树宽度）
+  useEffect(() => {
+    if (!isDraggingTreeResizer) return
+
+    const handleMouseMove = (e: MouseEvent) => {
+      setFileTreeWidth(e.clientX)
+    }
+
+    const handleMouseUp = () => {
+      setIsDraggingTreeResizer(false)
+    }
+
+    document.addEventListener('mousemove', handleMouseMove)
+    document.addEventListener('mouseup', handleMouseUp)
+    document.body.style.userSelect = 'none'
+    document.body.style.cursor = 'col-resize'
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+      document.body.style.userSelect = ''
+      document.body.style.cursor = ''
+    }
+  }, [isDraggingTreeResizer, setFileTreeWidth])
 
   const { t, lang } = useTranslation()
   const isMobile = useIsMobile()
@@ -237,15 +297,13 @@ export default function ChatLayout() {
     setSidebarOpen((prev) => !prev)
   }, [])
 
-  const toggleZenMode = useCallback(() => {
-    setZenMode((prev) => {
-      if (!prev) {
-        // 进入焦点模式时关闭侧边栏
-        setSidebarOpen(false)
-      }
-      return !prev
-    })
-  }, [])
+  // 焦点模式切换包装：进入时关闭侧边栏
+  const handleToggleZenMode = useCallback(() => {
+    if (!zenMode) {
+      setSidebarOpen(false)
+    }
+    toggleZenMode()
+  }, [zenMode, toggleZenMode])
 
   const handleNewChat = useCallback(() => {
     const session = createSession()
@@ -399,7 +457,7 @@ export default function ChatLayout() {
       // Ctrl+Shift+Z — 焦点模式
       if (e.ctrlKey && e.shiftKey && e.key === 'Z') {
         e.preventDefault()
-        toggleZenMode()
+        handleToggleZenMode()
       }
       // Ctrl+Shift+F — 全局搜索
       if (e.ctrlKey && e.shiftKey && e.key === 'F') {
@@ -443,7 +501,7 @@ export default function ChatLayout() {
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [toggleSidebar, handleNewChat, navigate, toggleTheme, sidebarOpen, zenMode, toggleZenMode])
+  }, [toggleSidebar, handleNewChat, navigate, toggleTheme, sidebarOpen, zenMode, handleToggleZenMode])
 
   return (
     <div className={cn("flex h-screen overflow-hidden bg-background", zenMode && "zen-mode-active")}>
@@ -455,12 +513,29 @@ export default function ChatLayout() {
           </span>
           <span className={`status-dot ${connectionStatus}`} />
           <TooltipProvider>
+            {/* 文件浏览器切换 */}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon-xs"
-                  onClick={toggleZenMode}
+                  onClick={() => useFileExplorerStore.getState().toggleFileExplorer()}
+                  className={cn("text-foreground", showFileExplorer && "text-primary")}
+                >
+                  <FolderOpen size={14} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" sideOffset={4}>
+                {showFileExplorer ? t('layout.closeFileExplorer') : t('layout.openFileExplorer')}
+              </TooltipContent>
+            </Tooltip>
+            {/* 退出焦点模式 */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={handleToggleZenMode}
                   className="text-foreground"
                 >
                   <Minimize2 size={14} />
@@ -489,6 +564,32 @@ export default function ChatLayout() {
           )}>
             <Sidebar onClose={() => setSidebarOpen(false)} />
           </div>
+        </>
+      )}
+
+      {/* 聚焦模式下的文件浏览器面板（文件树 | 文件查看器 左右分屏） */}
+      {zenMode && showFileExplorer && (
+        <>
+          <div style={{ width: fileExplorerWidth, flexShrink: 0 }} className="flex h-full border-r border-border">
+            {/* 左：文件树（可拖拽宽度） */}
+            <div style={{ width: fileTreeWidth, flexShrink: 0 }} className="h-full overflow-hidden">
+              <FileExplorer />
+            </div>
+            {/* 内部分隔条：文件树 vs 文件查看器 */}
+            <div
+              className={cn("file-explorer-resizer", isDraggingTreeResizer && "dragging")}
+              onMouseDown={() => setIsDraggingTreeResizer(true)}
+            />
+            {/* 右：文件查看器 */}
+            <div className="flex-1 min-w-0 h-full overflow-hidden">
+              <FileViewer />
+            </div>
+          </div>
+          <div
+            ref={resizerRef}
+            className={cn("file-explorer-resizer", isDraggingResizer && "dragging")}
+            onMouseDown={() => setIsDraggingResizer(true)}
+          />
         </>
       )}
 
@@ -737,7 +838,7 @@ export default function ChatLayout() {
                   <Button
                     variant="ghost"
                     size="icon-xs"
-                    onClick={toggleZenMode}
+                    onClick={handleToggleZenMode}
                     className="text-foreground"
                   >
                     <Maximize2 size={14} />
@@ -956,7 +1057,7 @@ export default function ChatLayout() {
           </div>
         )}
 
-        {/* 路由内容 */}
+        {/* 路由内容 — 对话区完整占据右侧 */}
         <div className="flex-1 min-h-0 flex flex-col">
           <Outlet />
         </div>

@@ -255,6 +255,12 @@ const en: Locale = {
     selectFolder: 'Select Project Folder',
     zenMode: 'Zen Mode',
     exitZenMode: 'Exit Zen Mode',
+    fileExplorer: 'File Explorer',
+    openFileExplorer: 'Open File Explorer',
+    closeFileExplorer: 'Close File Explorer',
+    addToContext: 'Add to Context',
+    searchFiles: 'Search files...',
+    noFiles: 'No files in this directory',
   },
 
   // ===== Settings =====

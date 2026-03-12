@@ -253,6 +253,12 @@ const zh = {
     selectFolder: '选择项目文件夹',
     zenMode: '焦点模式',
     exitZenMode: '退出焦点模式',
+    fileExplorer: '文件浏览',
+    openFileExplorer: '打开文件浏览器',
+    closeFileExplorer: '关闭文件浏览器',
+    addToContext: '添加到上下文',
+    searchFiles: '搜索文件...',
+    noFiles: '该目录下没有文件',
   },
 
   // ===== 设置页 =====

@@ -34,6 +34,7 @@ import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { useSessionStore, type Message } from '../stores/sessionStore'
 import { useSettingsStore } from '../stores/settingsStore'
+import { useFileExplorerStore } from '../stores/fileExplorerStore'
 import { useTranslation } from '../i18n'
 import { playNotificationSound } from '../utils/notificationSound'
 import ContextPanel from '../components/ContextPanel'
@@ -1107,28 +1108,17 @@ export default function ChatPage() {
         break
       }
       case '/files': {
-        // 获取当前项目的文件结构
+        // 进入聚焦模式 + 打开文件浏览器
         const filesWorkDir = session?.workingDirectory
         if (!filesWorkDir) {
           toast.error('请先选择项目文件夹')
           break
         }
-        const filesSid = sessionId || activeSessionId
-        if (filesSid) {
-          const msgId = addMessage(filesSid, { role: 'assistant', content: '正在生成文件结构...' })
-          fetch(`/api/filesystem/tree?path=${encodeURIComponent(filesWorkDir)}&depth=2`)
-            .then(res => res.json())
-            .then(data => {
-              if (data.tree) {
-                updateMessage(filesSid, msgId, `\`\`\`\n${data.tree}\n\`\`\``)
-              } else {
-                updateMessage(filesSid, msgId, '无法获取文件结构')
-              }
-            })
-            .catch(() => {
-              updateMessage(filesSid, msgId, '获取文件结构失败，请检查网络连接')
-            })
-        }
+        // 设置文件浏览器路径为当前项目目录
+        useFileExplorerStore.getState().setCurrentPath(filesWorkDir)
+        useFileExplorerStore.getState().setShowFileExplorer(true)
+        // 进入聚焦模式
+        useSettingsStore.getState().setZenMode(true)
         break
       }
     }

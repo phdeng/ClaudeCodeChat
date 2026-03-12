@@ -6,6 +6,12 @@ interface SettingsState {
   soundEnabled: boolean
   /** 切换音效 */
   toggleSound: () => void
+  /** 是否处于聚焦模式 */
+  zenMode: boolean
+  /** 切换聚焦模式 */
+  toggleZenMode: () => void
+  /** 设置聚焦模式 */
+  setZenMode: (value: boolean) => void
   /** 已关闭的提示集合（用于永久隐藏浮动提示等） */
   dismissedHints: string[]
   /** 关闭某个提示 */
@@ -19,6 +25,9 @@ export const useSettingsStore = create<SettingsState>()(
     (set) => ({
       soundEnabled: false,
       toggleSound: () => set((s) => ({ soundEnabled: !s.soundEnabled })),
+      zenMode: false,
+      toggleZenMode: () => set((s) => ({ zenMode: !s.zenMode })),
+      setZenMode: (value: boolean) => set({ zenMode: value }),
       dismissedHints: [],
       dismissHint: (hintId: string) =>
         set((s) => ({

@@ -1,5 +1,6 @@
 import { Router, type Router as RouterType } from 'express'
 import * as fs from 'fs/promises'
+import { createReadStream } from 'fs'
 import * as path from 'path'
 import * as os from 'os'
 import { execFile } from 'child_process'
@@ -882,6 +883,99 @@ router.get('/read-file', async (req, res) => {
   } catch (err) {
     console.error('读取文件内容失败:', err)
     res.status(500).json({ error: '读取文件内容失败' })
+  }
+})
+
+/**
+ * GET /api/filesystem/raw?path=<file_path>
+ * 以原始二进制流返回文件内容，用于浏览器直接预览（PDF、图片等）。
+ * - 设置正确的 Content-Type
+ * - 安全检查：禁止路径遍历
+ * - 最大文件大小限制：50MB
+ */
+router.get('/raw', async (req, res) => {
+  try {
+    const rawPath = req.query.path as string | undefined
+    if (!rawPath) {
+      return res.status(400).json({ error: '缺少 path 参数' })
+    }
+
+    // 安全检查
+    const pathCheck = validatePathSecurity(rawPath)
+    if (!pathCheck.valid) {
+      return res.status(403).json({ error: pathCheck.error })
+    }
+
+    const filePath = pathCheck.resolvedPath
+
+    // 获取文件状态
+    let stat
+    try {
+      stat = await fs.stat(filePath)
+    } catch (err: unknown) {
+      const code = (err as NodeJS.ErrnoException).code
+      if (code === 'ENOENT') {
+        return res.status(404).json({ error: '文件不存在' })
+      }
+      throw err
+    }
+
+    if (stat.isDirectory()) {
+      return res.status(400).json({ error: '该路径是目录' })
+    }
+
+    // 限制 50MB
+    if (stat.size > 50 * 1024 * 1024) {
+      return res.status(413).json({ error: '文件过大（>50MB）' })
+    }
+
+    // MIME 类型映射
+    const ext = path.extname(filePath).toLowerCase()
+    const MIME_MAP: Record<string, string> = {
+      '.pdf': 'application/pdf',
+      '.png': 'image/png',
+      '.jpg': 'image/jpeg',
+      '.jpeg': 'image/jpeg',
+      '.gif': 'image/gif',
+      '.svg': 'image/svg+xml',
+      '.webp': 'image/webp',
+      '.ico': 'image/x-icon',
+      '.bmp': 'image/bmp',
+      '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      '.xls': 'application/vnd.ms-excel',
+      '.doc': 'application/msword',
+      '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      '.mp4': 'video/mp4',
+      '.mp3': 'audio/mpeg',
+      '.wav': 'audio/wav',
+      '.txt': 'text/plain',
+      '.html': 'text/html',
+      '.css': 'text/css',
+      '.js': 'text/javascript',
+      '.json': 'application/json',
+    }
+
+    const contentType = MIME_MAP[ext] || 'application/octet-stream'
+
+    // 使用 createReadStream 流式传输
+    res.setHeader('Content-Type', contentType)
+    res.setHeader('Content-Length', stat.size)
+    // 内联显示（不强制下载）
+    res.setHeader('Content-Disposition', `inline; filename="${path.basename(filePath)}"`)
+
+    const stream = createReadStream(filePath)
+    stream.pipe(res)
+    stream.on('error', () => {
+      if (!res.headersSent) {
+        res.status(500).json({ error: '读取文件失败' })
+      }
+    })
+  } catch (err) {
+    console.error('原始文件读取失败:', err)
+    if (!res.headersSent) {
+      res.status(500).json({ error: '读取文件失败' })
+    }
   }
 })
 

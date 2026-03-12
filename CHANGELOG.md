@@ -4,6 +4,29 @@
 
 ---
 
+## [v1.6.0] — 2026-03-12
+
+### 新增
+- **文件浏览器组件**（`FileExplorer.tsx`）：聚焦模式下的文件浏览面板，包含：
+  - 面包屑导航（可点击路径段快速跳转）
+  - 文件/目录列表（按类型排序，图标按扩展名映射）
+  - 搜索过滤（300ms debounce）
+  - 文件预览（底部面板展示文件内容）
+  - 「添加到上下文」按钮（复制 @路径 到剪贴板）
+- **文件浏览器状态管理**（`fileExplorerStore.ts`）：路径、显示状态、面板宽度（localStorage 持久化）
+- **聚焦分屏布局**：焦点模式下左右分屏 — 文件浏览器（左）+ 对话区域（右）
+  - 可拖拽分隔条（min 200px，max 50% 视口宽度）
+  - 焦点工具条新增文件浏览器切换按钮
+- **`/files` 命令升级**：从输出文件树改为进入聚焦分屏模式 + 打开文件浏览器
+
+### 变更
+- 版本号从 1.5.0 升级到 1.6.0
+- `zenMode` 状态从 ChatLayout useState 迁移到 settingsStore（跨组件共享）
+- `/files` 命令从文本输出改为打开分屏文件浏览器
+- 焦点模式浮动工具条新增文件浏览器切换按钮（FolderOpen 图标）
+
+---
+
 ## [v1.5.0] — 2026-03-12
 
 ### 新增
@@ -203,6 +226,7 @@
 
 ---
 
+[v1.6.0]: https://github.com/phdeng/ClaudeCodeChat/compare/v1.5.0...v1.6.0
 [v1.5.0]: https://github.com/phdeng/ClaudeCodeChat/compare/v1.4.0...v1.5.0
 [v1.4.0]: https://github.com/phdeng/ClaudeCodeChat/compare/v1.3.0...v1.4.0
 [v1.3.0]: https://github.com/phdeng/ClaudeCodeChat/compare/v1.2.0...v1.3.0

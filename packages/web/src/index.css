@@ -820,6 +820,46 @@ input, textarea, select {
   background: rgba(0, 0, 0, 0.03) !important;
 }
 
+/* 文件查看器 Shiki — 不覆盖 Shiki 自带背景色，保证 token 颜色与背景配套 */
+.shiki-file-viewer pre {
+  overflow-x: auto;
+  margin: 0;
+  padding: 1em;
+  position: relative;
+}
+
+.shiki-file-viewer code {
+  background: none !important;
+  padding: 0;
+  font-size: 0.85em;
+  font-family: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', Consolas, monospace;
+}
+
+.shiki-file-viewer .line {
+  display: block;
+  counter-increment: line;
+}
+
+.shiki-file-viewer code {
+  counter-reset: line;
+}
+
+.shiki-file-viewer .line::before {
+  content: counter(line);
+  display: inline-block;
+  width: 2.5em;
+  margin-right: 1em;
+  text-align: right;
+  color: var(--color-muted-foreground);
+  opacity: 0.25;
+  font-size: 0.8em;
+  user-select: none;
+}
+
+.light .shiki-file-viewer .line::before {
+  opacity: 0.4;
+}
+
 /* ============================================
    Responsive layout
    ============================================ */
@@ -1025,6 +1065,149 @@ input, textarea, select {
   z-index: 10;
   pointer-events: none;
   opacity: 0.6;
+}
+
+/* ============================================
+   文件浏览器分屏分隔条
+   ============================================ */
+
+/* 分隔条 — 默认显示边框线，hover/拖拽时高亮 */
+.file-explorer-resizer {
+  width: 5px;
+  cursor: col-resize;
+  background: var(--color-border);
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.2s ease;
+  z-index: 10;
+}
+
+.file-explorer-resizer:hover,
+.file-explorer-resizer.dragging {
+  background: var(--color-primary);
+}
+
+.file-explorer-resizer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -4px;
+  right: -4px;
+  bottom: 0;
+}
+
+/* 文件浏览器容器 */
+.file-explorer-panel {
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-background);
+  border-right: 1px solid var(--color-border);
+}
+
+/* 文件浏览器面包屑 */
+.file-explorer-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--color-muted-foreground);
+  border-bottom: 1px solid var(--color-border);
+  overflow-x: auto;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.file-explorer-breadcrumb button {
+  background: none;
+  border: none;
+  color: var(--color-muted-foreground);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-size: 12px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.file-explorer-breadcrumb button:hover {
+  color: var(--color-foreground);
+  background: var(--color-accent);
+}
+
+.file-explorer-breadcrumb .separator {
+  color: var(--color-muted-foreground);
+  opacity: 0.5;
+}
+
+/* 文件列表 */
+.file-explorer-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+}
+
+.file-explorer-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--color-foreground);
+  transition: background 0.15s;
+}
+
+.file-explorer-item:hover {
+  background: var(--color-accent);
+}
+
+.file-explorer-item .file-icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  color: var(--color-muted-foreground);
+}
+
+.file-explorer-item .file-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-explorer-item .file-meta {
+  font-size: 11px;
+  color: var(--color-muted-foreground);
+  flex-shrink: 0;
+}
+
+/* 文件浏览器搜索框 */
+.file-explorer-search {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.file-explorer-search input {
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-background);
+  color: var(--color-foreground);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.file-explorer-search input:focus {
+  border-color: var(--color-primary);
+}
+
+.file-explorer-search input::placeholder {
+  color: var(--color-muted-foreground);
 }
 
 /* ============================================
