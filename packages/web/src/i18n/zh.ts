@@ -582,6 +582,13 @@ const zh = {
     by: '作者',
   },
 
+  // ===== 会话标签页 =====
+  sessionTabs: {
+    close: '关闭标签',
+    closeOthers: '关闭其他',
+    closeAll: '全部关闭',
+  },
+
   // ===== 高级参数 =====
   advancedParams: {
     title: '高级参数',

@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, useRef, type TouchEvent as ReactTouchEvent, type DragEvent } from 'react'
+import { useState, useEffect, useCallback, useRef, type TouchEvent as ReactTouchEvent } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
-import { PanelLeftClose, PanelLeft, MessageSquare, ChevronDown, Zap, FolderOpen, Sun, Moon, Monitor, Volume2, VolumeX, Cloud, CloudOff, Loader2, Shield, ClipboardList, Maximize2, Minimize2, Bell, RefreshCw, X, Plus, ChevronLeft, ChevronRight as ChevronRightIcon, List, Search, Settings, BookOpen, SlidersHorizontal, Store } from 'lucide-react'
+import { PanelLeftClose, PanelLeft, MessageSquare, ChevronDown, Zap, FolderOpen, Sun, Moon, Monitor, Volume2, VolumeX, Cloud, CloudOff, Loader2, Shield, ClipboardList, Maximize2, Minimize2, Bell, RefreshCw, List, Search, Settings, BookOpen, SlidersHorizontal, Store } from 'lucide-react'
 import Sidebar from '../components/Sidebar'
 import AdvancedParamsPanel from '../components/AdvancedParamsPanel'
 import FolderPicker from '../components/FolderPicker'
@@ -9,7 +9,9 @@ import GlobalCommandPalette from '../components/GlobalCommandPalette'
 import NotificationCenter from '../components/NotificationCenter'
 import FileExplorer from '../components/FileExplorer'
 import FileViewer from '../components/FileViewer'
+import SessionTabs from '../components/SessionTabs'
 import { useSessionStore } from '../stores/sessionStore'
+import { useSessionTabsStore } from '../stores/sessionTabsStore'
 import { useThemeStore } from '../stores/themeStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useNotificationStore } from '../stores/notificationStore'
@@ -61,13 +63,10 @@ export default function ChatLayout() {
   const [showAdvancedParams, setShowAdvancedParams] = useState(false)
   const modelPickerRef = useRef<HTMLDivElement>(null)
   const notificationBtnRef = useRef<HTMLDivElement>(null)
-  const tabsContainerRef = useRef<HTMLDivElement>(null)
-  const [tabScrollable, setTabScrollable] = useState<{ left: boolean; right: boolean }>({ left: false, right: false })
-  const [dragTabIndex, setDragTabIndex] = useState<number | null>(null)
-  const [dragOverTabIndex, setDragOverTabIndex] = useState<number | null>(null)
   const navigate = useNavigate()
   const location = useLocation()
-  const { sessions, activeSessionId, createSession, selectedModel, setSelectedModel, permissionMode, setPermissionMode, connectionStatus, setSessionWorkingDirectory, syncToBackend, loadFromBackend, lastSyncTime, isSyncing, setProjectFilter, setActiveSession, networkLatency, reconnectCount, lastDisconnectedAt, backendVersion, openTabs, removeTab, reorderTabs, streamingSessions } = useSessionStore()
+  const { sessions, activeSessionId, createSession, selectedModel, setSelectedModel, permissionMode, setPermissionMode, connectionStatus, setSessionWorkingDirectory, syncToBackend, loadFromBackend, lastSyncTime, isSyncing, setProjectFilter, setActiveSession, networkLatency, reconnectCount, lastDisconnectedAt, backendVersion, streamingSessions } = useSessionStore()
+  const sessionTabs = useSessionTabsStore((s) => s.tabs)
   const { mode, toggleTheme } = useThemeStore()
   const { soundEnabled, toggleSound, zenMode, toggleZenMode, setZenMode } = useSettingsStore()
   const notificationUnreadCount = useNotificationStore((s) => s.unreadCount())
@@ -305,10 +304,12 @@ export default function ChatLayout() {
     toggleZenMode()
   }, [zenMode, toggleZenMode])
 
+  const openSessionTab = useSessionTabsStore((s) => s.openTab)
   const handleNewChat = useCallback(() => {
     const session = createSession()
+    openSessionTab(session.id, session.title)
     navigate(`/chat/${session.id}`)
-  }, [createSession, navigate])
+  }, [createSession, openSessionTab, navigate])
 
   // 应用启动时从后端加载会话数据 & 初始化自动同步
   const initRef = useRef(false)
@@ -326,84 +327,6 @@ export default function ChatLayout() {
     const timeStr = date.toLocaleTimeString(lang === 'zh' ? 'zh-CN' : 'en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
     return lang === 'zh' ? `上次同步: ${timeStr}` : `Last sync: ${timeStr}`
   }, [])
-
-  // 检查标签栏是否需要滚动箭头
-  const checkTabScrollable = useCallback(() => {
-    const container = tabsContainerRef.current
-    if (!container) return
-    setTabScrollable({
-      left: container.scrollLeft > 0,
-      right: container.scrollLeft + container.clientWidth < container.scrollWidth - 1,
-    })
-  }, [])
-
-  useEffect(() => {
-    checkTabScrollable()
-    const container = tabsContainerRef.current
-    if (container) {
-      container.addEventListener('scroll', checkTabScrollable)
-      const ro = new ResizeObserver(checkTabScrollable)
-      ro.observe(container)
-      return () => {
-        container.removeEventListener('scroll', checkTabScrollable)
-        ro.disconnect()
-      }
-    }
-  }, [openTabs, checkTabScrollable])
-
-  const scrollTabs = useCallback((direction: 'left' | 'right') => {
-    const container = tabsContainerRef.current
-    if (!container) return
-    const scrollAmount = 200
-    container.scrollBy({
-      left: direction === 'left' ? -scrollAmount : scrollAmount,
-      behavior: 'smooth',
-    })
-  }, [])
-
-  // 标签拖拽排序处理
-  const handleTabDragStart = useCallback((e: DragEvent<HTMLDivElement>, index: number) => {
-    setDragTabIndex(index)
-    e.dataTransfer.effectAllowed = 'move'
-    e.dataTransfer.setData('text/plain', String(index))
-  }, [])
-
-  const handleTabDragOver = useCallback((e: DragEvent<HTMLDivElement>, index: number) => {
-    e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
-    setDragOverTabIndex(index)
-  }, [])
-
-  const handleTabDragEnd = useCallback(() => {
-    if (dragTabIndex !== null && dragOverTabIndex !== null && dragTabIndex !== dragOverTabIndex) {
-      reorderTabs(dragTabIndex, dragOverTabIndex)
-    }
-    setDragTabIndex(null)
-    setDragOverTabIndex(null)
-  }, [dragTabIndex, dragOverTabIndex, reorderTabs])
-
-  const handleTabClick = useCallback((sessionId: string) => {
-    setActiveSession(sessionId)
-    navigate(`/chat/${sessionId}`)
-  }, [setActiveSession, navigate])
-
-  const handleTabClose = useCallback((e: React.MouseEvent, sessionId: string) => {
-    e.stopPropagation()
-    const wasActive = activeSessionId === sessionId
-    removeTab(sessionId)
-    if (wasActive) {
-      // removeTab 已经在 store 中处理了 activeSessionId 的切换
-      // 需要在下一帧获取新的 activeSessionId 并导航
-      setTimeout(() => {
-        const newActiveId = useSessionStore.getState().activeSessionId
-        if (newActiveId) {
-          navigate(`/chat/${newActiveId}`)
-        } else {
-          navigate('/')
-        }
-      }, 0)
-    }
-  }, [activeSessionId, removeTab, navigate])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -959,102 +882,8 @@ export default function ChatLayout() {
         )}
 
         {/* 标签页栏 — 焦点模式下隐藏, 移动端隐藏 */}
-        {!zenMode && !isMobile && openTabs.length > 0 && (
-          <div className="session-tab-bar flex-shrink-0 flex items-center h-[34px] bg-card/50 border-b border-border px-1 gap-0">
-            {/* 左滚动箭头 */}
-            {tabScrollable.left && (
-              <button
-                className="flex-shrink-0 w-6 h-full flex items-center justify-center text-foreground transition-colors"
-                onClick={() => scrollTabs('left')}
-              >
-                <ChevronLeft size={14} />
-              </button>
-            )}
-
-            {/* 标签容器 */}
-            <div
-              ref={tabsContainerRef}
-              className="flex-1 flex items-center overflow-x-hidden gap-0.5 min-w-0"
-            >
-              {openTabs.map((tabId, index) => {
-                const tabSession = sessions.find(s => s.id === tabId)
-                if (!tabSession) return null
-                const isActive = tabId === activeSessionId
-                const isStreamingTab = streamingSessions.has(tabId)
-                const title = tabSession.title || t('sidebar.newChat')
-                const truncatedTitle = title.length > 20 ? title.slice(0, 20) + '...' : title
-
-                return (
-                  <div
-                    key={tabId}
-                    draggable
-                    onDragStart={(e) => handleTabDragStart(e, index)}
-                    onDragOver={(e) => handleTabDragOver(e, index)}
-                    onDragEnd={handleTabDragEnd}
-                    onDragLeave={() => setDragOverTabIndex(null)}
-                    onClick={() => handleTabClick(tabId)}
-                    className={cn(
-                      'session-tab group flex items-center gap-1 px-2.5 h-[28px] rounded-md cursor-pointer select-none transition-all text-[12px] min-w-0 max-w-[180px] flex-shrink-0',
-                      isActive
-                        ? 'bg-accent text-foreground shadow-sm'
-                        : 'text-foreground hover:bg-accent/40',
-                      dragOverTabIndex === index && dragTabIndex !== index && 'ring-1 ring-primary/50',
-                      dragTabIndex === index && 'opacity-50'
-                    )}
-                  >
-                    {/* 流式传输动画点 */}
-                    {isStreamingTab && (
-                      <span className="flex-shrink-0 flex items-center gap-[2px] mr-0.5">
-                        <span className="w-[3px] h-[3px] rounded-full bg-primary animate-bounce [animation-delay:0ms]" />
-                        <span className="w-[3px] h-[3px] rounded-full bg-primary animate-bounce [animation-delay:150ms]" />
-                        <span className="w-[3px] h-[3px] rounded-full bg-primary animate-bounce [animation-delay:300ms]" />
-                      </span>
-                    )}
-                    <span className="truncate text-[11px] leading-tight">{truncatedTitle}</span>
-                    {/* 关闭按钮 */}
-                    <button
-                      className={cn(
-                        'flex-shrink-0 w-4 h-4 flex items-center justify-center rounded-sm transition-colors',
-                        isActive
-                          ? 'text-foreground hover:bg-background/50'
-                          : 'opacity-0 group-hover:opacity-100 text-foreground hover:bg-background/50'
-                      )}
-                      onClick={(e) => handleTabClose(e, tabId)}
-                    >
-                      <X size={10} />
-                    </button>
-                  </div>
-                )
-              })}
-            </div>
-
-            {/* 右滚动箭头 */}
-            {tabScrollable.right && (
-              <button
-                className="flex-shrink-0 w-6 h-full flex items-center justify-center text-foreground transition-colors"
-                onClick={() => scrollTabs('right')}
-              >
-                <ChevronRightIcon size={14} />
-              </button>
-            )}
-
-            {/* 新建标签按钮 */}
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    className="flex-shrink-0 w-6 h-6 flex items-center justify-center rounded-md text-foreground hover:bg-accent/50 transition-colors ml-0.5"
-                    onClick={handleNewChat}
-                  >
-                    <Plus size={13} />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" sideOffset={4}>
-                  {t('sidebar.newChat')} (Ctrl+N)
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
+        {!zenMode && !isMobile && sessionTabs.length > 0 && (
+          <SessionTabs />
         )}
 
         {/* 路由内容 — 对话区完整占据右侧 */}

@@ -584,6 +584,13 @@ const en: Locale = {
     by: 'by',
   },
 
+  // ===== Session Tabs =====
+  sessionTabs: {
+    close: 'Close Tab',
+    closeOthers: 'Close Others',
+    closeAll: 'Close All',
+  },
+
   // ===== Advanced Parameters =====
   advancedParams: {
     title: 'Advanced Parameters',

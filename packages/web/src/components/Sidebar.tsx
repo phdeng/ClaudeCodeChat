@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Plus, Settings, History, X, MessageSquare, Sparkles, Search, Trash2, FolderOpen, Download, FileText, FileJson, FileCode, Pin, Upload, Tag, Eye, Archive, ArchiveRestore, ChevronRight, ChevronDown, GripVertical, BookTemplate, ScrollText, Loader2, Palette, Check, XCircle, MoreHorizontal, BookOpen, GitBranch, Star, Store } from 'lucide-react'
 import { toast } from 'sonner'
 import { useSessionStore, type Session } from '../stores/sessionStore'
+import { useSessionTabsStore } from '../stores/sessionTabsStore'
 import { useCategoryStore } from '../stores/categoryStore'
 import { useTranslation } from '../i18n'
 import { exportSessionAsMarkdown, exportSessionAsJson, exportSessionAsHtml, importSessionFromJson } from '../utils/exportChat'
@@ -11,7 +12,6 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import TagCloudPanel from './TagCloudPanel'
 import SessionTreeView from './SessionTreeView'
@@ -27,6 +27,12 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu'
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  TooltipProvider,
+} from '@/components/ui/tooltip'
 
 interface SidebarProps {
   onClose: () => void
@@ -112,6 +118,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { sessions, activeSessionId, createSession, deleteSession, togglePinSession, toggleArchiveSession, importSession, addSessionTag, removeSessionTag, reorderSessions, setSessionColorLabel, projectFilter, setProjectFilter, streamingSessions } = useSessionStore()
+  const openTab = useSessionTabsStore((s) => s.openTab)
 
   // 触摸手势：从右向左滑动关闭侧边栏
   const sidebarRef = useRef<HTMLElement>(null)
@@ -242,6 +249,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
 
   const handleNewChat = () => {
     const session = createSession()
+    openTab(session.id, session.title)
     navigate(`/chat/${session.id}`)
   }
 
@@ -343,6 +351,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
       const result = importSessionFromJson(jsonString)
       if (result.success && result.session) {
         importSession(result.session)
+        openTab(result.session.id, result.session.title)
         navigate(`/chat/${result.session.id}`)
         toast.success(t('sidebar.importedSession' as any, { title: result.session.title }))
         if (window.innerWidth < 768) onClose()
@@ -643,6 +652,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
                       <>
                         <button
                           onClick={() => {
+                            openTab(session.id, session.title)
                             navigate(`/chat/${session.id}`)
                             // 移动端自动关闭侧边栏
                             if (window.innerWidth < 768) onClose()
@@ -994,6 +1004,7 @@ export default function Sidebar({ onClose }: SidebarProps) {
                       <>
                         <button
                           onClick={() => {
+                            openTab(session.id, session.title)
                             navigate(`/chat/${session.id}`)
                             if (window.innerWidth < 768) onClose()
                           }}
@@ -1067,84 +1078,114 @@ export default function Sidebar({ onClose }: SidebarProps) {
       {/* 标签云面板 */}
       <TagCloudPanel />
 
-      {/* 底部 */}
-      <div className="flex-shrink-0">
-        <Separator />
-        <div className="px-3 py-2 space-y-0.5">
-          <Button
-            variant="ghost"
-            onClick={() => {
-              navigate('/sessions')
-              if (window.innerWidth < 768) onClose()
-            }}
-            className="w-full justify-start gap-2.5 px-2.5 py-2 text-[13px] text-foreground"
-          >
-            <History size={14} className="opacity-60" />
-            {t('sidebar.sessionHistory' as any)}
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={() => setShowFavoritesPanel(true)}
-            className="w-full justify-start gap-2.5 px-2.5 py-2 text-[13px] text-foreground"
-          >
-            <Star size={14} className="opacity-60" />
-            <span className="flex-1 text-left">消息收藏</span>
-            {favoritesCount > 0 && (
-              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 min-w-[18px] flex items-center justify-center">
-                {favoritesCount}
-              </Badge>
-            )}
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={() => {
-              navigate('/knowledge')
-              if (window.innerWidth < 768) onClose()
-            }}
-            className="w-full justify-start gap-2.5 px-2.5 py-2 text-[13px] text-foreground"
-          >
-            <BookOpen size={14} className="opacity-60" />
-            {t('knowledge.title' as any)}
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={() => {
-              navigate('/marketplace')
-              if (window.innerWidth < 768) onClose()
-            }}
-            className="w-full justify-start gap-2.5 px-2.5 py-2 text-[13px] text-foreground"
-          >
-            <Store size={14} className="opacity-60" />
-            {t('marketplace.title' as any)}
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={() => {
-              navigate('/settings')
-              if (window.innerWidth < 768) onClose()
-            }}
-            className="w-full justify-start gap-2.5 px-2.5 py-2 text-[13px] text-foreground"
-          >
-            <Settings size={14} className="opacity-60" />
-            {t('common.settings')}
-          </Button>
-          <Button
-            variant="ghost"
-            onClick={() => fileInputRef.current?.click()}
-            className="w-full justify-start gap-2.5 px-2.5 py-2 text-[13px] text-foreground"
-          >
-            <Upload size={14} className="opacity-60" />
-            {t('sidebar.importChat' as any)}
-          </Button>
-          {/* 隐藏的文件选择 input */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".json"
-            onChange={handleImportFile}
-            className="hidden"
-          />
+      {/* 底部工具栏 */}
+      <div className="flex-shrink-0 border-t border-border">
+        <div className="flex items-center justify-around px-2 py-1.5">
+          <TooltipProvider delayDuration={300}>
+            {/* 会话历史 */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => {
+                    navigate('/sessions')
+                    if (window.innerWidth < 768) onClose()
+                  }}
+                  className="p-2 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                >
+                  <History size={16} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top">{t('sidebar.sessionHistory' as any)}</TooltipContent>
+            </Tooltip>
+
+            {/* 消息收藏 */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => setShowFavoritesPanel(true)}
+                  className="relative p-2 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                >
+                  <Star size={16} />
+                  {favoritesCount > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 text-[9px] font-medium bg-primary text-primary-foreground rounded-full flex items-center justify-center">
+                      {favoritesCount}
+                    </span>
+                  )}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top">消息收藏</TooltipContent>
+            </Tooltip>
+
+            {/* 知识库 */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => {
+                    navigate('/knowledge')
+                    if (window.innerWidth < 768) onClose()
+                  }}
+                  className="p-2 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                >
+                  <BookOpen size={16} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top">{t('knowledge.title' as any)}</TooltipContent>
+            </Tooltip>
+
+            {/* 插件市场 */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => {
+                    navigate('/marketplace')
+                    if (window.innerWidth < 768) onClose()
+                  }}
+                  className="p-2 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                >
+                  <Store size={16} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top">{t('marketplace.title' as any)}</TooltipContent>
+            </Tooltip>
+
+            {/* 设置 */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => {
+                    navigate('/settings')
+                    if (window.innerWidth < 768) onClose()
+                  }}
+                  className="p-2 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                >
+                  <Settings size={16} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top">{t('common.settings')}</TooltipContent>
+            </Tooltip>
+
+            {/* 导入会话 */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="p-2 rounded-lg hover:bg-accent text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                >
+                  <Upload size={16} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top">{t('sidebar.importChat' as any)}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </div>
+        {/* 隐藏的文件选择 input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".json"
+          onChange={handleImportFile}
+          className="hidden"
+        />
       </div>
     </aside>
 

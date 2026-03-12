@@ -33,6 +33,7 @@ import { Button } from '@/components/ui/button'
 // Tooltip imports removed — toolbar consolidated into input area
 import { toast } from 'sonner'
 import { useSessionStore, type Message } from '../stores/sessionStore'
+import { useSessionTabsStore } from '../stores/sessionTabsStore'
 import { useSettingsStore } from '../stores/settingsStore'
 import { useFileExplorerStore } from '../stores/fileExplorerStore'
 import { useTranslation } from '../i18n'
@@ -162,13 +163,27 @@ export default function ChatPage() {
 
   currentSessionIdRef.current = sessionId || activeSessionId || null
 
+  const { openTab: openSessionTab, setActiveTab, updateTabTitle } = useSessionTabsStore()
+
   useEffect(() => {
     if (sessionId) {
       setActiveSession(sessionId)
       // 进入会话时，将该会话的未读计数清零
       markSessionRead(sessionId)
+      // 同步标签页：打开并激活
+      const s = sessions.find((sess) => sess.id === sessionId)
+      if (s) {
+        openSessionTab(sessionId, s.title)
+      }
     }
-  }, [sessionId, setActiveSession, markSessionRead])
+  }, [sessionId, setActiveSession, markSessionRead, sessions, openSessionTab])
+
+  // 当会话标题变化时，同步更新标签页标题
+  useEffect(() => {
+    if (session) {
+      updateTabTitle(session.id, session.title)
+    }
+  }, [session?.id, session?.title, updateTabTitle])
 
   useEffect(() => {
     // 启动时获取后端版本号
