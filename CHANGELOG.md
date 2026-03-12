@@ -4,6 +4,35 @@
 
 ---
 
+## [v1.5.0] — 2026-03-12
+
+### 新增
+- **MessageList 组件拆分**：4200+ 行巨型组件拆分为独立模块：
+  - `messageUtils.ts`：15 个工具函数（时间格式化、文本统计、thinking/tool 解析、工具信息映射等）
+  - `messageTypes.ts`：6 个 TypeScript 接口（ToolUseParsed/ToolResultParsed/MessageGroup 等）
+  - `CodeBlock.tsx`：代码块渲染（Shiki 高亮 + 复制 + 全屏 + Diff + 片段保存）+ InlineDiffView + useCopyToClipboard Hook
+  - `MessageActions.tsx`：消息操作栏（编辑/复制/收藏/固定/朗读/翻译）+ VersionHistoryPanel + TokenUsageBadge + FeedbackButtons + MessageReactions
+- **全局搜索增强面板**：`/search` 命令打开 Sheet 抽屉，支持：
+  - 多维度筛选：日期范围、标签、颜色标签、项目路径、消息角色
+  - 搜索结果按会话分组 + 关键词 `<mark>` 高亮
+  - 搜索历史（最近 10 条，localStorage 持久化）
+- **对话分支可视化**：侧边栏「查看分支」入口，打开 Sheet 面板展示 fork 关系树：
+  - Session 接口扩展 parentSessionId + forkFromMessageIndex
+  - 递归树形渲染，当前会话蓝色高亮，点击节点跳转
+
+### 变更
+- 版本号从 1.4.0 升级到 1.5.0
+- forkSession 方法记录父子关系（parentSessionId + forkFromMessageIndex）
+- ChatPage 新增 `/search` 命令处理
+- Sidebar 会话操作菜单新增「查看分支」入口
+- CLAUDE.md 新增「设计先行」规则
+
+### 修复
+- ContextPanel: Sheet Portal 脱离主 DOM 树导致 Tooltip 崩溃，添加 TooltipProvider
+- GitPanel: useEffect 依赖 fetchStatus（包含 t() 翻译函数）导致无限循环，移除依赖
+
+---
+
 ## [v1.4.0] — 2026-03-12
 
 ### 新增
@@ -174,6 +203,7 @@
 
 ---
 
+[v1.5.0]: https://github.com/phdeng/ClaudeCodeChat/compare/v1.4.0...v1.5.0
 [v1.4.0]: https://github.com/phdeng/ClaudeCodeChat/compare/v1.3.0...v1.4.0
 [v1.3.0]: https://github.com/phdeng/ClaudeCodeChat/compare/v1.2.0...v1.3.0
 [v1.2.0]: https://github.com/phdeng/ClaudeCodeChat/compare/v1.1.0...v1.2.0

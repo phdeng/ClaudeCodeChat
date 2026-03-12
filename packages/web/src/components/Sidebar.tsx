@@ -1,6 +1,6 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Settings, History, X, MessageSquare, Sparkles, Search, Trash2, FolderOpen, Download, FileText, FileJson, FileCode, Pin, Upload, Tag, Eye, Archive, ArchiveRestore, ChevronRight, ChevronDown, GripVertical, BookTemplate, ScrollText, Loader2, Palette, Check, XCircle, MoreHorizontal, BookOpen } from 'lucide-react'
+import { Plus, Settings, History, X, MessageSquare, Sparkles, Search, Trash2, FolderOpen, Download, FileText, FileJson, FileCode, Pin, Upload, Tag, Eye, Archive, ArchiveRestore, ChevronRight, ChevronDown, GripVertical, BookTemplate, ScrollText, Loader2, Palette, Check, XCircle, MoreHorizontal, BookOpen, GitBranch } from 'lucide-react'
 import { toast } from 'sonner'
 import { useSessionStore, type Session } from '../stores/sessionStore'
 import { useCategoryStore } from '../stores/categoryStore'
@@ -14,6 +14,7 @@ import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import TagCloudPanel from './TagCloudPanel'
+import SessionTreeView from './SessionTreeView'
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -168,6 +169,9 @@ export default function Sidebar({ onClose }: SidebarProps) {
   // 会话摘要状态
   const [summaries, setSummaries] = useState<Map<string, string>>(new Map())
   const [summarizingId, setSummarizingId] = useState<string | null>(null)
+
+  // 会话分支树视图状态
+  const [treeViewSessionId, setTreeViewSessionId] = useState<string | null>(null)
 
   /** 调用后端 API 生成会话摘要 */
   const handleGenerateSummary = useCallback(async (session: Session) => {
@@ -841,6 +845,12 @@ export default function Sidebar({ onClose }: SidebarProps) {
                                 </DropdownMenuItem>
                               )}
 
+                              {/* 查看分支 */}
+                              <DropdownMenuItem onSelect={() => setTreeViewSessionId(session.id)}>
+                                <GitBranch size={14} className="opacity-60" />
+                                查看分支
+                              </DropdownMenuItem>
+
                               {/* 归档 */}
                               <DropdownMenuItem onSelect={() => {
                                 toggleArchiveSession(session.id)
@@ -1127,6 +1137,19 @@ export default function Sidebar({ onClose }: SidebarProps) {
         open={!!previewSessionId}
         onClose={() => setPreviewSessionId(null)}
         sessionId={previewSessionId}
+      />
+    )}
+
+    {/* 会话分支树视图 */}
+    {treeViewSessionId && (
+      <SessionTreeView
+        sessionId={treeViewSessionId}
+        open={!!treeViewSessionId}
+        onClose={() => setTreeViewSessionId(null)}
+        onNavigate={(targetSessionId) => {
+          setTreeViewSessionId(null)
+          navigate(`/chat/${targetSessionId}`)
+        }}
       />
     )}
     </>

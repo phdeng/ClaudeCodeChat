@@ -27,6 +27,7 @@ import { useWorkflowStore, type Workflow } from '../stores/workflowStore'
 import { exportChatAsImage } from '../utils/exportImage'
 import ProjectDashboard from '../components/ProjectDashboard'
 import GitPanel from '../components/GitPanel'
+import GlobalSearchPanel from '../components/GlobalSearchPanel'
 import { WifiOff, Loader2, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 // Tooltip imports removed — toolbar consolidated into input area
@@ -104,6 +105,7 @@ export default function ChatPage() {
   const [selectMode, setSelectMode] = useState(false)
   const [showWorkflow, setShowWorkflow] = useState(false)
   const [showGitPanel, setShowGitPanel] = useState(false)
+  const [showGlobalSearch, setShowGlobalSearch] = useState(false)
   // 引用回复状态
   const [quotedMessage, setQuotedMessage] = useState<{ role: string; content: string } | null>(null)
   // Diff 对比视图状态
@@ -1071,6 +1073,10 @@ export default function ChatPage() {
         setShowWorkflow(true)
         break
       }
+      case '/search': {
+        setShowGlobalSearch(true)
+        break
+      }
       case '/context': {
         setShowContext(true)
         break
@@ -1376,6 +1382,27 @@ export default function ChatPage() {
         onSendContext={() => {
           setShowContext(false)
           handleSend('/context')
+        }}
+      />
+
+      {/* 全局搜索面板 */}
+      <GlobalSearchPanel
+        open={showGlobalSearch}
+        onClose={() => setShowGlobalSearch(false)}
+        onNavigate={(targetSessionId, messageIndex) => {
+          setShowGlobalSearch(false)
+          // 切换到目标会话
+          if (targetSessionId !== sessionId) {
+            setActiveSession(targetSessionId)
+            navigate(`/chat/${targetSessionId}`)
+          }
+          // 通过 highlightedMsgId 高亮目标消息
+          if (messageIndex !== undefined) {
+            const targetSession = sessions.find(s => s.id === targetSessionId)
+            if (targetSession && targetSession.messages[messageIndex]) {
+              setHighlightedMsgId(targetSession.messages[messageIndex].id)
+            }
+          }
         }}
       />
 

@@ -69,6 +69,10 @@ export interface Session {
   summary?: string
   /** 关键话题标签 */
   keyTopics?: string[]
+  /** 父会话 ID（从哪个会话 fork 的） */
+  parentSessionId?: string
+  /** 从第几条消息 fork 的 */
+  forkFromMessageIndex?: number
 }
 
 interface SessionState {
@@ -573,6 +577,8 @@ export const useSessionStore = create<SessionState>()(persist((set, get) => ({
       tags: sourceSession.tags ? [...sourceSession.tags] : undefined,
       colorLabel: sourceSession.colorLabel,
       contextNotes: sourceSession.contextNotes ? [...sourceSession.contextNotes] : undefined,
+      parentSessionId: sessionId,
+      forkFromMessageIndex: msgIndex,
     }
 
     set((state) => ({
