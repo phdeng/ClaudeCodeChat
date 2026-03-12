@@ -6,6 +6,7 @@ import AdvancedParamsPanel from '../components/AdvancedParamsPanel'
 import FolderPicker from '../components/FolderPicker'
 import KeyboardShortcutsDialog from '../components/KeyboardShortcutsDialog'
 import GlobalCommandPalette from '../components/GlobalCommandPalette'
+import QuickSessionSwitcher from '../components/QuickSessionSwitcher'
 import NotificationCenter from '../components/NotificationCenter'
 import FileExplorer from '../components/FileExplorer'
 import FileViewer from '../components/FileViewer'
@@ -61,6 +62,7 @@ export default function ChatLayout() {
   const [showCommandPalette, setShowCommandPalette] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const [showAdvancedParams, setShowAdvancedParams] = useState(false)
+  const [showQuickSwitcher, setShowQuickSwitcher] = useState(false)
   const modelPickerRef = useRef<HTMLDivElement>(null)
   const notificationBtnRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
@@ -381,6 +383,11 @@ export default function ChatLayout() {
       if (e.ctrlKey && e.shiftKey && e.key === 'Z') {
         e.preventDefault()
         handleToggleZenMode()
+      }
+      // Ctrl+Shift+H — 快速会话切换器
+      if (e.ctrlKey && e.shiftKey && e.key === 'H') {
+        e.preventDefault()
+        setShowQuickSwitcher(true)
       }
       // Ctrl+Shift+F — 全局搜索
       if (e.ctrlKey && e.shiftKey && e.key === 'F') {
@@ -910,6 +917,12 @@ export default function ChatLayout() {
       <GlobalCommandPalette
         open={showCommandPalette}
         onClose={() => setShowCommandPalette(false)}
+      />
+
+      {/* 快速会话切换器 */}
+      <QuickSessionSwitcher
+        open={showQuickSwitcher}
+        onClose={() => setShowQuickSwitcher(false)}
       />
 
       {/* 浮动快捷键已整合到 ChatPage 的 FloatingToolbar 中 */}

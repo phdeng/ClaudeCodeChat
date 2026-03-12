@@ -1746,7 +1746,13 @@ export default function ChatInput({
             <p
               className={cn(
                 'font-mono whitespace-nowrap',
-                isOverLimit && 'text-destructive'
+                tokenCount > 5000
+                  ? 'text-red-500'
+                  : tokenCount > 2000
+                    ? 'text-orange-500'
+                    : isOverLimit
+                      ? 'text-destructive'
+                      : ''
               )}
             >
               {charCount} {lang === 'zh' ? '字' : 'chars'} · ~{tokenCount} tokens

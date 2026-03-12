@@ -4,6 +4,17 @@
 
 ---
 
+## [1.12.0] — 2026-03-13
+
+### 新增
+- **快速会话切换器**：Ctrl+Shift+H 打开浮动面板，模糊搜索会话标题快速切换
+  - 上下箭头键盘导航 + Enter 确认 + Esc 关闭
+  - 显示会话标题、消息数、标签、最后活动时间（相对时间）
+  - 当前会话蓝色高亮标记
+- **输入框 Token 统计增强**：Token 数超过 2000 显示橙色，超过 5000 显示红色预警
+
+---
+
 ## [1.11.0] — 2026-03-13
 
 ### 新增
@@ -294,6 +305,7 @@
 
 ---
 
+[1.12.0]: https://github.com/phdeng/ClaudeCodeChat/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/phdeng/ClaudeCodeChat/compare/v1.10.0...v1.11.0
 [1.10.0]: https://github.com/phdeng/ClaudeCodeChat/compare/v1.9.0...v1.10.0
 [1.9.0]: https://github.com/phdeng/ClaudeCodeChat/compare/v1.8.0...v1.9.0
