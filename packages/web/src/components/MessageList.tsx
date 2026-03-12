@@ -273,6 +273,8 @@ interface ProgressItem {
 interface MessageListProps {
   messages: Message[]
   highlightedMessageId?: string | null
+  /** 搜索关键词，用于消息内文本高亮 */
+  searchQuery?: string
   activeProgress?: ProgressItem[]
   selectMode?: boolean
   onSelectModeChange?: (mode: boolean) => void
@@ -316,6 +318,23 @@ function QuickActionButton({ icon: Icon, label, onClick }: {
       <Icon size={13} className="opacity-60" />
       {label}
     </button>
+  )
+}
+
+/**
+ * 将文本中匹配搜索关键词的部分用 <mark> 标签包裹高亮显示
+ * 大小写不敏感匹配
+ */
+function highlightSearchText(text: string, query: string): React.ReactNode {
+  if (!query || !text) return text
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const regex = new RegExp(`(${escaped})`, 'gi')
+  const parts = text.split(regex)
+  if (parts.length <= 1) return text
+  return parts.map((part, i) =>
+    regex.test(part)
+      ? <mark key={i} className="bg-yellow-300/80 dark:bg-yellow-500/40 text-inherit rounded-sm px-[1px]">{part}</mark>
+      : part
   )
 }
 
@@ -2726,7 +2745,7 @@ function MessageGroupCollapse({
   )
 }
 
-export default function MessageList({ messages, highlightedMessageId, activeProgress, selectMode: selectModeProp, onSelectModeChange, onSuggestionClick, onEditMessage, onRegenerateMessage, onForkFromMessage, onQuoteMessage }: MessageListProps) {
+export default function MessageList({ messages, highlightedMessageId, searchQuery, activeProgress, selectMode: selectModeProp, onSelectModeChange, onSuggestionClick, onEditMessage, onRegenerateMessage, onForkFromMessage, onQuoteMessage }: MessageListProps) {
   const activeSessionId = useSessionStore((s) => s.activeSessionId)
   const allSessions = useSessionStore((s) => s.sessions)
   const createSession = useSessionStore((s) => s.createSession)
@@ -3672,7 +3691,7 @@ export default function MessageList({ messages, highlightedMessageId, activeProg
                 onDrop={selectMode ? (e) => handleDrop(e, idx) : undefined}
                 className={cn(
                   "rounded-xl transition-all duration-200 relative",
-                  highlightedMessageId === msg.id && 'ring-2 ring-primary/50',
+                  highlightedMessageId === msg.id && 'ring-2 ring-primary/50 animate-[search-flash_1s_ease-out]',
                   selectMode && selectedMsgIds.has(msg.id) && 'bg-primary/10 ring-1 ring-primary/30',
                   selectMode && dragIndex === idx && 'opacity-50',
                   selectMode && dragOverIndex === idx && dragIndex !== idx && 'border-t-2 border-t-primary',
@@ -3797,8 +3816,11 @@ export default function MessageList({ messages, highlightedMessageId, activeProg
                           )}
                           {msg.content && (
                             <div className="text-[13.5px] text-foreground whitespace-pre-wrap break-words leading-[1.65]">
-                              {/* 过滤掉旧格式的 [图片: xxx] 标记（新格式已通过 images 字段渲染） */}
-                              {msg.content.replace(/\[图片: [^\]]+\]\s*/g, '').trim() || msg.content}
+                              {/* 过滤掉旧格式的 [图片: xxx] 标记（新格式已通过 images 字段渲染），搜索时高亮匹配 */}
+                              {(() => {
+                                const displayText = msg.content.replace(/\[图片: [^\]]+\]\s*/g, '').trim() || msg.content
+                                return searchQuery ? highlightSearchText(displayText, searchQuery) : displayText
+                              })()}
                             </div>
                           )}
                         </div>

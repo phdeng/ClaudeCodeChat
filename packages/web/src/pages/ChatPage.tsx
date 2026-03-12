@@ -92,6 +92,7 @@ export default function ChatPage() {
   const [agentsMap, setAgentsMap] = useState<Map<string, AgentState>>(new Map())
   const [showCost, setShowCost] = useState(false)
   const [showSearch, setShowSearch] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
   const [showSystemPrompt, setShowSystemPrompt] = useState(false)
   const [showPromptLib, setShowPromptLib] = useState(false)
   const [showBookmarks, setShowBookmarks] = useState(false)
@@ -1135,8 +1136,9 @@ export default function ChatPage() {
         <MessageSearchBar
           messages={session?.messages || []}
           open={showSearch}
-          onClose={() => { setShowSearch(false); setHighlightedMsgId(null) }}
+          onClose={() => { setShowSearch(false); setHighlightedMsgId(null); setSearchQuery('') }}
           onHighlight={setHighlightedMsgId}
+          onSearchQueryChange={setSearchQuery}
         />
       )}
 
@@ -1193,6 +1195,7 @@ export default function ChatPage() {
         <MessageList
           messages={session?.messages || []}
           highlightedMessageId={highlightedMsgId}
+          searchQuery={showSearch ? searchQuery : undefined}
           activeProgress={activeProgress}
           selectMode={selectMode}
           onSelectModeChange={setSelectMode}

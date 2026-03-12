@@ -451,6 +451,13 @@ input, textarea, select {
   animation: fadeIn 0.3s ease-out;
 }
 
+/* 搜索匹配消息闪烁高亮 */
+@keyframes search-flash {
+  0% { background-color: hsl(var(--primary) / 0.2); }
+  50% { background-color: hsl(var(--primary) / 0.08); }
+  100% { background-color: transparent; }
+}
+
 /* ============================================
    Connection status indicator
    ============================================ */

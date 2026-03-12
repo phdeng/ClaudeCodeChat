@@ -501,6 +501,35 @@ const zh = {
     files: '{count} 个文件',
   },
 
+  // ===== 提示词模板 =====
+  promptTemplates: {
+    title: '提示词模板',
+    codeReview: '代码审查',
+    bugFix: 'Bug 修复',
+    refactor: '代码重构',
+    explainCode: '解释代码',
+    writeTests: '编写测试',
+    generateDocs: '文档生成',
+    customTemplate: '自定义模板',
+    newTemplate: '新建模板',
+    noTemplates: '暂无模板',
+    dragFileHint: '拖拽文件到此处引用',
+  },
+
+  // ===== 消息搜索 =====
+  messageSearch: {
+    placeholder: '在消息中搜索...',
+    noResults: '无匹配结果',
+    matchCount: '{{current}}/{{total}}',
+    prevMatch: '上一个',
+    nextMatch: '下一个',
+    close: '关闭',
+    replaceWith: '替换为...',
+    replace: '替换',
+    replaceAll: '全部替换',
+    onlyUserReplaceable: '条可替换',
+  },
+
   // ===== 高级参数 =====
   advancedParams: {
     title: '高级参数',

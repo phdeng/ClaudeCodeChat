@@ -503,6 +503,35 @@ const en: Locale = {
     files: '{count} files',
   },
 
+  // ===== Prompt Templates =====
+  promptTemplates: {
+    title: 'Prompt Templates',
+    codeReview: 'Code Review',
+    bugFix: 'Bug Fix',
+    refactor: 'Refactor',
+    explainCode: 'Explain Code',
+    writeTests: 'Write Tests',
+    generateDocs: 'Generate Docs',
+    customTemplate: 'Custom Template',
+    newTemplate: 'New Template',
+    noTemplates: 'No templates',
+    dragFileHint: 'Drop files here to reference',
+  },
+
+  // ===== Message Search =====
+  messageSearch: {
+    placeholder: 'Search messages...',
+    noResults: 'No results',
+    matchCount: '{{current}}/{{total}}',
+    prevMatch: 'Previous',
+    nextMatch: 'Next',
+    close: 'Close',
+    replaceWith: 'Replace with...',
+    replace: 'Replace',
+    replaceAll: 'Replace all',
+    onlyUserReplaceable: 'replaceable',
+  },
+
   // ===== Advanced Parameters =====
   advancedParams: {
     title: 'Advanced Parameters',

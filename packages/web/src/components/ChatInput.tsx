@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
-import { ArrowUp, Square, Mic, MicOff, ImagePlus, X, Bold, Italic, Code, TextQuote, Plus, Trash2, Pencil, BarChart2, Save, User, Bot, MessageSquareQuote, Lightbulb, ChevronDown, ChevronUp, FolderOpen, Settings2 as SettingsIcon, FileText, AlertTriangle } from 'lucide-react'
+import { ArrowUp, Square, Mic, MicOff, ImagePlus, X, Bold, Italic, Code, TextQuote, Plus, Trash2, Pencil, BarChart2, Save, User, Bot, MessageSquareQuote, Lightbulb, ChevronDown, ChevronUp, FolderOpen, Settings2 as SettingsIcon, FileText, AlertTriangle, BookTemplate } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
@@ -9,6 +9,7 @@ import { usePhrasesStore } from '@/stores/phrasesStore'
 import { useSessionStore, type Message } from '@/stores/sessionStore'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { useTranslation } from '../i18n'
+import PromptTemplates from './PromptTemplates'
 
 // ==================== 图片附件类型 ====================
 
@@ -309,6 +310,33 @@ export default function ChatInput({
       document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [trigger?.type])
+
+  // ==================== 提示词模板 ====================
+  const [showTemplates, setShowTemplates] = useState(false)
+
+  /** 选择模板后将内容填入输入框 */
+  const handleTemplateSelect = useCallback((content: string) => {
+    const textarea = textareaRef.current
+    if (!textarea) {
+      setInput(prev => prev + content)
+      return
+    }
+
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const before = input.slice(0, start)
+    const after = input.slice(end)
+    const newValue = before + content + after
+    setInput(newValue)
+
+    // 将光标移到插入内容之后
+    requestAnimationFrame(() => {
+      const newPos = start + content.length
+      textarea.selectionStart = newPos
+      textarea.selectionEnd = newPos
+      textarea.focus()
+    })
+  }, [input])
 
   // ==================== 快捷短语 ====================
   const [showPhrases, setShowPhrases] = useState(false)
@@ -1155,9 +1183,9 @@ export default function ChatInput({
       >
         {/* 拖拽覆盖层 */}
         {isDragging && (
-          <div className="absolute inset-0 z-10 bg-primary/10 border-2 border-dashed border-primary rounded-xl flex items-center justify-center">
+          <div className="absolute inset-0 z-10 bg-primary/5 border-2 border-dashed border-primary rounded-xl flex items-center justify-center">
             <span className="text-primary text-[13px] font-medium pointer-events-none">
-              {lang === 'zh' ? '拖拽文件或图片到此处' : 'Drop files or images here'}
+              {t('promptTemplates.dragFileHint')}
             </span>
           </div>
         )}
@@ -1592,6 +1620,35 @@ export default function ChatInput({
                 </div>
               </TooltipTrigger>
               {!showPhrases && <TooltipContent side="top" className="text-[10px]">{lang === 'zh' ? '快捷短语' : 'Quick phrases'}</TooltipContent>}
+            </Tooltip>
+
+            {/* 提示词模板按钮 */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="relative">
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
+                    onClick={() => setShowTemplates(v => !v)}
+                    className={cn(
+                      "h-5 w-5 cursor-pointer",
+                      showTemplates
+                        ? "text-primary"
+                        : "text-muted-foreground hover:bg-accent"
+                    )}
+                  >
+                    <BookTemplate size={11} />
+                  </Button>
+
+                  {/* 提示词模板下拉面板 */}
+                  <PromptTemplates
+                    open={showTemplates}
+                    onSelect={handleTemplateSelect}
+                    onClose={() => setShowTemplates(false)}
+                  />
+                </div>
+              </TooltipTrigger>
+              {!showTemplates && <TooltipContent side="top" className="text-[10px]">{t('promptTemplates.title')}</TooltipContent>}
             </Tooltip>
           </TooltipProvider>
           )}

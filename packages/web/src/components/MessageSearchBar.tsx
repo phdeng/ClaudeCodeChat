@@ -11,9 +11,11 @@ interface MessageSearchBarProps {
   open: boolean
   onClose: () => void
   onHighlight: (messageId: string | null) => void
+  /** 搜索词变化时通知父组件（已防抖 300ms），用于消息内文本高亮 */
+  onSearchQueryChange?: (query: string) => void
 }
 
-export default function MessageSearchBar({ messages, open, onClose, onHighlight }: MessageSearchBarProps) {
+export default function MessageSearchBar({ messages, open, onClose, onHighlight, onSearchQueryChange }: MessageSearchBarProps) {
   const [query, setQuery] = useState('')
   const [currentIndex, setCurrentIndex] = useState(0)
   /** 是否处于"搜索+替换"模式 */
@@ -22,6 +24,7 @@ export default function MessageSearchBar({ messages, open, onClose, onHighlight 
   const [replaceText, setReplaceText] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
   const replaceInputRef = useRef<HTMLInputElement>(null)
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const { activeSessionId, updateMessage } = useSessionStore()
 
@@ -70,6 +73,18 @@ export default function MessageSearchBar({ messages, open, onClose, onHighlight 
       replaceInputRef.current.focus()
     }
   }, [replaceMode])
+
+  // 防抖通知父组件搜索词变化（300ms）
+  useEffect(() => {
+    if (!onSearchQueryChange) return
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
+    debounceTimerRef.current = setTimeout(() => {
+      onSearchQueryChange(query.trim())
+    }, 300)
+    return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current)
+    }
+  }, [query, onSearchQueryChange])
 
   // 跳转到下一个匹配
   const goToNext = useCallback(() => {
