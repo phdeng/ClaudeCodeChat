@@ -3773,7 +3773,7 @@ export default function MessageList({ messages, highlightedMessageId, searchQuer
                       />
                     </div>
                   )}
-                  <div className="max-w-[80%] relative group/msg">
+                  <div className="max-w-[90%] sm:max-w-[80%] relative group/msg">
                     {editingId === msg.id ? (
                       /* 编辑模式 */
                       <div className="w-full min-w-[320px]">
@@ -3796,7 +3796,7 @@ export default function MessageList({ messages, highlightedMessageId, searchQuer
                             }
                           }}
                           className={cn(
-                            "w-full resize-none rounded-2xl rounded-br-sm px-4 py-2.5",
+                            "w-full resize-none rounded-2xl rounded-br-md px-4 py-3",
                             "bg-primary/15 border border-primary/40",
                             "text-[13.5px] text-foreground leading-[1.65]",
                             "focus:outline-none focus:ring-1 focus:ring-primary/50",
@@ -3855,7 +3855,7 @@ export default function MessageList({ messages, highlightedMessageId, searchQuer
                             }
                           }}
                         />
-                        <div className="bg-primary/15 rounded-2xl rounded-br-sm px-4 py-2.5 border border-border">
+                        <div className="bg-primary text-primary-foreground rounded-2xl rounded-br-md px-4 py-3 shadow-sm [&_pre]:!bg-background/20 [&_pre]:!text-foreground [&_code]:!text-primary-foreground [&_pre_code]:!text-foreground">
                           {/* 用户消息附带的图片 */}
                           {msg.images && msg.images.length > 0 && (
                             <MessageImages
@@ -3864,7 +3864,7 @@ export default function MessageList({ messages, highlightedMessageId, searchQuer
                             />
                           )}
                           {msg.content && (
-                            <div className="text-[13.5px] text-foreground whitespace-pre-wrap break-words leading-[1.65]">
+                            <div className="text-[13.5px] text-primary-foreground whitespace-pre-wrap break-words leading-[1.65]">
                               {/* 过滤掉旧格式的 [图片: xxx] 标记（新格式已通过 images 字段渲染），搜索时高亮匹配 */}
                               {(() => {
                                 const displayText = msg.content.replace(/\[图片: [^\]]+\]\s*/g, '').trim() || msg.content
@@ -3948,7 +3948,7 @@ export default function MessageList({ messages, highlightedMessageId, searchQuer
                         }
                       }}
                     />
-                    <div className="text-[13.5px] text-foreground break-words leading-[1.7] markdown-body">
+                    <div className="text-[13.5px] text-foreground break-words leading-[1.7] markdown-body bg-muted/40 rounded-2xl rounded-bl-md px-4 py-3">
                       {!msg.content && !msg.isStreaming ? (
                         <span className="text-muted-foreground italic">(无内容)</span>
                       ) : (

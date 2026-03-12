@@ -42,6 +42,7 @@ import ContextPanel from '../components/ContextPanel'
 import FilePreviewDialog from '../components/FilePreviewDialog'
 import SensitiveWarningDialog from '../components/SensitiveWarningDialog'
 import BudgetAlert from '../components/BudgetAlert'
+import ScratchPad from '../components/ScratchPad'
 import { detectSensitive, maskSensitive } from '../utils/sensitiveDetector'
 import type { SensitiveMatch } from '../utils/sensitiveDetector'
 import { useContextStore } from '../stores/contextStore'
@@ -1445,6 +1446,15 @@ export default function ChatPage() {
           }}
         />
       )}
+
+      {/* 快速笔记 ScratchPad */}
+      <ScratchPad
+        onCopyToInput={(text) => {
+          navigator.clipboard.writeText(text).then(() => {
+            toast.success('笔记内容已复制到剪贴板，可粘贴到输入框')
+          })
+        }}
+      />
     </div>
   )
 }

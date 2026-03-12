@@ -4,6 +4,21 @@
 
 ---
 
+## [1.11.0] — 2026-03-13
+
+### 新增
+- **消息气泡样式优化**：用户消息右对齐 + 主题色实心气泡 + 白色文字 + 轻阴影；AI 消息左对齐 + 淡灰卡片背景 + 圆角
+- **快速笔记 ScratchPad**：右下角浮动便签窗口（320x400），支持临时记录想法/代码片段/提示词草稿
+  - Zustand + localStorage 持久化笔记内容
+  - 底部工具栏：字数统计 + 复制到剪贴板 + 清空
+  - 最小化状态 + 内容非空蓝色圆点指示
+
+### 改进
+- 用户气泡内代码块通过 CSS 选择器覆盖颜色，确保可读性
+- 移动端气泡宽度自适应（90%），桌面端 80%
+
+---
+
 ## [1.10.0] — 2026-03-13
 
 ### 新增
@@ -279,6 +294,7 @@
 
 ---
 
+[1.11.0]: https://github.com/phdeng/ClaudeCodeChat/compare/v1.10.0...v1.11.0
 [1.10.0]: https://github.com/phdeng/ClaudeCodeChat/compare/v1.9.0...v1.10.0
 [1.9.0]: https://github.com/phdeng/ClaudeCodeChat/compare/v1.8.0...v1.9.0
 [1.8.0]: https://github.com/phdeng/ClaudeCodeChat/compare/v1.7.0...v1.8.0
