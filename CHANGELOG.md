@@ -4,6 +4,14 @@
 
 ---
 
+## [1.14.1] — 2026-03-13
+
+### 修复
+- **项目筛选刷新丢失**：将 `projectFilter` 加入 Zustand `partialize` 持久化配置，刷新浏览器后保留项目选择
+- **历史对话加载空白**：修复 `useEffect` 依赖 `sessions` 数组导致 `markSessionRead` → sessions 变化 → 无限循环的问题
+
+---
+
 ## [1.14.0] — 2026-03-13
 
 ### 新增

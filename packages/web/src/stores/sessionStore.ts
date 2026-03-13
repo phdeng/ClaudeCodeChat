@@ -84,7 +84,7 @@ interface SessionState {
   connectionStatus: 'connected' | 'connecting' | 'disconnected'
   /** 草稿映射：会话 ID → 草稿内容 */
   drafts: Record<string, string>
-  /** 当前项目筛选路径（运行时状态，不持久化） */
+  /** 当前项目筛选路径（持久化到 localStorage，刷新后保留） */
   projectFilter: string | null
   /** 网络延迟（毫秒），null 表示未测量 */
   networkLatency: number | null
@@ -879,5 +879,6 @@ export const useSessionStore = create<SessionState>()(persist((set, get) => ({
     permissionMode: state.permissionMode,
     drafts: state.drafts,
     dismissedHints: state.dismissedHints,
+    projectFilter: state.projectFilter,
   }),
 }))
