@@ -164,7 +164,7 @@ export default function ChatPage() {
 
   currentSessionIdRef.current = sessionId || activeSessionId || null
 
-  const { openTab: openSessionTab, setActiveTab, updateTabTitle } = useSessionTabsStore()
+  // sessionTabsStore 通过 getState() 在 useEffect 中使用，避免依赖导致无限循环
 
   useEffect(() => {
     if (sessionId) {
@@ -172,19 +172,19 @@ export default function ChatPage() {
       // 进入会话时，将该会话的未读计数清零
       markSessionRead(sessionId)
       // 同步标签页：打开并激活
-      const s = sessions.find((sess) => sess.id === sessionId)
+      const s = useSessionStore.getState().sessions.find((sess) => sess.id === sessionId)
       if (s) {
-        openSessionTab(sessionId, s.title)
+        useSessionTabsStore.getState().openTab(sessionId, s.title)
       }
     }
-  }, [sessionId, setActiveSession, markSessionRead, sessions, openSessionTab])
+  }, [sessionId, setActiveSession, markSessionRead])
 
   // 当会话标题变化时，同步更新标签页标题
   useEffect(() => {
     if (session) {
-      updateTabTitle(session.id, session.title)
+      useSessionTabsStore.getState().updateTabTitle(session.id, session.title)
     }
-  }, [session?.id, session?.title, updateTabTitle])
+  }, [session?.id, session?.title])
 
   useEffect(() => {
     // 启动时获取后端版本号
